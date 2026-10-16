@@ -62,7 +62,7 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 
 ## 4. Project Checklist (Done vs. To Do)
 
-### Person 1 — Data, Tokenization & GPU Model Training (Owner: Guillaume)
+###  Data, Tokenization & GPU Model Training 
 - [x] Set up clean repository structure (`src/`, `requirements.txt`, `.gitignore`).
 - [x] Implement LEDGAR dataset loader & per-split class imbalance table in [`src/data.py`](src/data.py).
 - [x] Implement tokenizer comparison (`Legal-BERT` vs `BERT-base` vs `CamemBERT`) in [`src/data.py`](src/data.py) to justify model selection (`outputs/tokenizer_comparison.json`).
@@ -72,7 +72,7 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
   - `outputs/tfidf_{val,test}_logits.npy`: `TF-IDF + Logistic Regression` baseline (Test Micro-F1: **86.41%**, Macro-F1: **79.69%**).
   - *Note for Person 2 & 3:* Combining `Legal-BERT` + `TF-IDF` probabilities reaches **87.84% Micro-F1** and **81.02% Macro-F1**, proving that `TF-IDF` compensates for `Legal-BERT`'s 256-token truncation (12.2% of clauses) and rare-class underfitting (5 tail classes with 0% F1 in `Legal-BERT`).
 
-### Person 2 — Statistical Evaluation, Confidence Intervals & Calibration
+### Statistical Evaluation, Confidence Intervals & Calibration
 - [ ] Implement `wilson_confidence_interval()` in [`src/evaluation.py`](src/evaluation.py) for small-sample binomial proportions.
 - [ ] Implement `evaluate_bootstrap_confidence_intervals()` in [`src/evaluation.py`](src/evaluation.py) (1,000+ bootstrap resamples on `test_logits.npy`) for Micro-F1, Macro-F1, Weighted-F1, Top-3 Accuracy, and per-class F1.
 - [ ] Compare `Legal-BERT` vs. `TF-IDF Baseline` using a Paired Bootstrap test (95% CI on $\Delta \text{Macro-F1}$).
@@ -82,7 +82,7 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
   - *Tier 3 (Red — Do Not Deploy / Statistically Unverified, e.g., `Books`)*
 - [ ] Compute Expected Calibration Error (ECE), apply Temperature Scaling on `val_logits.npy`, and generate the forest plot & reliability diagram for the presentation.
 
-### Person 3 — Clause Bank Retrieval & Bias / Failure-Mode Audit
+### Clause Bank Retrieval & Bias / Failure-Mode Audit
 - [ ] Implement `ClauseBankRetriever` in [`src/retrieval.py`](src/retrieval.py) using `sentence-transformers/all-MiniLM-L6-v2` (dense cosine similarity) + `BM25` (lexical matching).
 - [ ] Evaluate retrieval quantitatively with 95% CIs on:
   - Clause-to-clause precedent search (Precision@5, MRR@5).
