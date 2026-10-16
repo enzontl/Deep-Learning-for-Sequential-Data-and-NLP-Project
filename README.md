@@ -44,6 +44,7 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 ```text
 ├── requirements.txt       # Project dependencies
 ├── README.md              # Project overview, team roles & task checklist
+├── train_colab_pro.ipynb  # [Person 1] Self-contained Colab Pro GPU training notebook (exports outputs.zip)
 └── src/
     ├── data.py            # [Person 1] Dataset loader, class imbalance stats & tokenizer comparison
     ├── train.py           # [Person 1] TF-IDF baseline + GPU BERT/Legal-BERT training & logit exporter
@@ -53,7 +54,7 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 ```
 
 ### How the 3 Roles Connect
-- **Person 1 (GPU / Data / Model Training)** runs the heavy training on GPU and saves the model predictions on the validation and test sets as lightweight NumPy arrays (`outputs/val_logits.npy`, `outputs/test_logits.npy`, `outputs/val_labels.npy`, `outputs/test_labels.npy` — only ~4 MB each).
+- **Person 1 (GPU / Data / Model Training)** uploads [`train_colab_pro.ipynb`](train_colab_pro.ipynb) to Google Colab Pro (A100 / L4 GPU), runs the training, and downloads `outputs.zip` containing the validation and test predictions (`outputs/legal_bert_val_logits.npy`, `outputs/legal_bert_test_logits.npy`, `outputs/tfidf_val_logits.npy`, `outputs/tfidf_test_logits.npy`, `outputs/val_labels.npy`, `outputs/test_labels.npy` — only ~4 MB each).
 - **Person 2 (Statistical Evaluation & Confidence Intervals)** loads those saved `.npy` files (no GPU needed!) to compute the 95% Bootstrap & Wilson confidence intervals, Reliability Tiers, and Calibration curves.
 - **Person 3 (Retrieval & Bias Audit)** builds the `Sentence-Transformer` retrieval index and runs the failure-mode & US-to-EU bias audits.
 
@@ -65,8 +66,8 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 - [x] Set up clean repository structure (`src/`, `requirements.txt`, `.gitignore`).
 - [x] Implement LEDGAR dataset loader & per-split class imbalance table in [`src/data.py`](src/data.py).
 - [x] Implement tokenizer comparison (`Legal-BERT` vs `BERT-base` vs `CamemBERT`) in [`src/data.py`](src/data.py) to justify model selection.
-- [x] Implement `TF-IDF + Logistic Regression` baseline and PyTorch GPU training loop (`Legal-BERT` / `BERT-base`) with validation/test logit export in [`src/train.py`](src/train.py).
-- [ ] **Next Step (Run on GPU):** Execute `train_tfidf_baseline()` and `fine_tune_transformer()` on GPU (Colab / local), and commit the resulting `outputs/*_logits.npy` and `outputs/*_labels.npy` files so Person 2 and Person 3 can run their analyses on the final model predictions.
+- [x] Implement `TF-IDF + Logistic Regression` baseline and PyTorch GPU training loop (`Legal-BERT` / `BERT-base`) in [`src/train.py`](src/train.py) and [`train_colab_pro.ipynb`](train_colab_pro.ipynb).
+- [ ] **Next Step (Run on Colab Pro GPU):** Upload [`train_colab_pro.ipynb`](train_colab_pro.ipynb) to Google Colab Pro, click **Run All**, unzip the downloaded `outputs.zip` into `outputs/`, and push `main` to GitHub so Person 2 and Person 3 have the trained model predictions.
 
 ### Person 2 — Statistical Evaluation, Confidence Intervals & Calibration
 - [ ] Implement `wilson_confidence_interval()` in [`src/evaluation.py`](src/evaluation.py) for small-sample binomial proportions.
