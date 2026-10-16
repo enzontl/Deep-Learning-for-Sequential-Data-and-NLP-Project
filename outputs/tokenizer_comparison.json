@@ -1,0 +1,23 @@
+{
+  "nlpaueb/legal-bert-base-uncased": {
+    "mean_tokens_per_word": 1.2,
+    "median_token_length": 105.0,
+    "p95_token_length": 347.14999999999986,
+    "pct_truncated_at_256": 12.2,
+    "pct_truncated_at_512": 1.6
+  },
+  "bert-base-uncased": {
+    "mean_tokens_per_word": 1.257,
+    "median_token_length": 109.5,
+    "p95_token_length": 370.04999999999995,
+    "pct_truncated_at_256": 13.8,
+    "pct_truncated_at_512": 1.6
+  },
+  "camembert-base": {
+    "mean_tokens_per_word": 1.924,
+    "median_token_length": 169.0,
+    "p95_token_length": 555.3499999999997,
+    "pct_truncated_at_256": 28.4,
+    "pct_truncated_at_512": 7.2
+  }
+}

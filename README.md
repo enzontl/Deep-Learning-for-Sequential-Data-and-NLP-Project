@@ -65,9 +65,12 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 ### Person 1 — Data, Tokenization & GPU Model Training (Owner: Guillaume)
 - [x] Set up clean repository structure (`src/`, `requirements.txt`, `.gitignore`).
 - [x] Implement LEDGAR dataset loader & per-split class imbalance table in [`src/data.py`](src/data.py).
-- [x] Implement tokenizer comparison (`Legal-BERT` vs `BERT-base` vs `CamemBERT`) in [`src/data.py`](src/data.py) to justify model selection.
-- [x] Implement `TF-IDF + Logistic Regression` baseline and PyTorch GPU training loop (`Legal-BERT` / `BERT-base`) in [`src/train.py`](src/train.py) and [`train_colab_pro.ipynb`](train_colab_pro.ipynb).
-- [ ] **Next Step (Run on Colab Pro GPU):** Upload [`train_colab_pro.ipynb`](train_colab_pro.ipynb) to Google Colab Pro, click **Run All**, unzip the downloaded `outputs.zip` into `outputs/`, and push `main` to GitHub so Person 2 and Person 3 have the trained model predictions.
+- [x] Implement tokenizer comparison (`Legal-BERT` vs `BERT-base` vs `CamemBERT`) in [`src/data.py`](src/data.py) to justify model selection (`outputs/tokenizer_comparison.json`).
+- [x] Implement `TF-IDF + Logistic Regression` baseline and PyTorch GPU training loop (`Legal-BERT`) in [`src/train.py`](src/train.py) and [`train_colab_pro.ipynb`](train_colab_pro.ipynb).
+- [x] **Run on Colab GPU & Export Predictions (`outputs/`):**
+  - `outputs/legal_bert_{val,test}_logits.npy`: Fine-tuned `nlpaueb/legal-bert-base-uncased` (Test Micro-F1: **85.98%**, Macro-F1: **75.89%**).
+  - `outputs/tfidf_{val,test}_logits.npy`: `TF-IDF + Logistic Regression` baseline (Test Micro-F1: **86.41%**, Macro-F1: **79.69%**).
+  - *Note for Person 2 & 3:* Combining `Legal-BERT` + `TF-IDF` probabilities reaches **87.84% Micro-F1** and **81.02% Macro-F1**, proving that `TF-IDF` compensates for `Legal-BERT`'s 256-token truncation (12.2% of clauses) and rare-class underfitting (5 tail classes with 0% F1 in `Legal-BERT`).
 
 ### Person 2 — Statistical Evaluation, Confidence Intervals & Calibration
 - [ ] Implement `wilson_confidence_interval()` in [`src/evaluation.py`](src/evaluation.py) for small-sample binomial proportions.

@@ -1,0 +1,27 @@
+{
+  "model": "nlpaueb/legal-bert-base-uncased",
+  "test_accuracy": 0.8598,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.8236,
+      "val_loss": 0.6722,
+      "val_accuracy": 0.8269,
+      "elapsed_sec": 811.7
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.5782,
+      "val_loss": 0.5467,
+      "val_accuracy": 0.8537,
+      "elapsed_sec": 821.7
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.4321,
+      "val_loss": 0.522,
+      "val_accuracy": 0.8612,
+      "elapsed_sec": 822.7
+    }
+  ]
+}
