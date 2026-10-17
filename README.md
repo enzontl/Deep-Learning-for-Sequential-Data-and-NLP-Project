@@ -16,7 +16,7 @@ Given a contract, our system must:
 ### Dataset (`coastalcph/lex_glue` — `ledgar`)
 - **Source:** US SEC (EDGAR) public material contracts.
 - **Splits:** `60,000` train / `10,000` validation / `10,000` test clauses across **100 classes**.
-- **Key Challenge #1 (Extreme Class Imbalance):** The largest class (`Governing Laws`) has **3,167** training clauses, while the smallest (`Books`) has only **23** training clauses (~4 in the test set!).
+- **Key Challenge #1 (Extreme Class Imbalance):** The largest class (`Governing Laws`) has **3,167** training clauses, while the smallest (`Books`) has only **23** training clauses (0 in validation, only **2** in the test set!).
 - **Key Challenge #2 (US Data vs. European Legal Context):** Although our startup operates in Europe, the public training dataset (`ledgar`) is 100% English US SEC filings governed by US Common Law (Delaware/New York).
 
 ---
@@ -42,9 +42,13 @@ Instead of reporting a single point estimate (`Accuracy = 87.5%, Macro-F1 = 80.1
 To keep our codebase clean, modular, and production-ready (using `.py` modules rather than a single giant notebook), the project is split into **3 independent workstreams**:
 
 ```text
-├── requirements.txt       # Project dependencies
+├── pyproject.toml         # uv project definition (dependencies, Python >= 3.13)
+├── uv.lock                # Locked dependency versions
+├── .python-version        # Python version used by uv
+├── requirements.txt       # Same dependencies for pip users
 ├── README.md              # Project overview, team roles & task checklist
 ├── train_colab_pro.ipynb  # [Person 1] Self-contained Colab Pro GPU training notebook (exports outputs.zip)
+├── outputs/               # [Person 1] Logits, labels & training stats; evaluation/ holds [Person 2] CIs, calibration & plots
 └── src/
     ├── data.py            # [Person 1] Dataset loader, class imbalance stats & tokenizer comparison
     ├── train.py           # [Person 1] TF-IDF baseline + GPU BERT/Legal-BERT training & logit exporter
@@ -70,17 +74,18 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 - [x] **Run on Colab GPU & Export Predictions (`outputs/`):**
   - `outputs/legal_bert_{val,test}_logits.npy`: Fine-tuned `nlpaueb/legal-bert-base-uncased` (Test Micro-F1: **85.98%**, Macro-F1: **75.89%**).
   - `outputs/tfidf_{val,test}_logits.npy`: `TF-IDF + Logistic Regression` baseline (Test Micro-F1: **86.41%**, Macro-F1: **79.69%**).
-  - *Note for Person 2 & 3:* Combining `Legal-BERT` + `TF-IDF` probabilities reaches **87.84% Micro-F1** and **81.02% Macro-F1**, proving that `TF-IDF` compensates for `Legal-BERT`'s 256-token truncation (12.2% of clauses) and rare-class underfitting (5 tail classes with 0% F1 in `Legal-BERT`).
+  - *Note for Person 2 & 3:* Combining `Legal-BERT` + `TF-IDF` calibrated probabilities (weight chosen on validation only) reaches **87.77% Micro-F1** and **80.62% Macro-F1** on test. The Micro-F1 gain over TF-IDF is significant, the Macro-F1 gain is not (see `outputs/evaluation/summary.json`). `TF-IDF` compensates for `Legal-BERT`'s 256-token truncation (12.2% of clauses, estimated on a 500-text sample) and rare-class underfitting (5 tail classes with 0% F1 in `Legal-BERT`).
 
 ### Statistical Evaluation, Confidence Intervals & Calibration
-- [ ] Implement `wilson_confidence_interval()` in [`src/evaluation.py`](src/evaluation.py) for small-sample binomial proportions.
-- [ ] Implement `evaluate_bootstrap_confidence_intervals()` in [`src/evaluation.py`](src/evaluation.py) (1,000+ bootstrap resamples on `test_logits.npy`) for Micro-F1, Macro-F1, Weighted-F1, Top-3 Accuracy, and per-class F1.
-- [ ] Compare `Legal-BERT` vs. `TF-IDF Baseline` using a Paired Bootstrap test (95% CI on $\Delta \text{Macro-F1}$).
-- [ ] Group the 100 clause categories into **3 Reliability Tiers** based on 95% CI lower bound and CI width:
+- [x] Implement `wilson_confidence_interval()` in [`src/evaluation.py`](src/evaluation.py) for small-sample binomial proportions.
+- [x] Implement `evaluate_bootstrap_confidence_intervals()` in [`src/evaluation.py`](src/evaluation.py) (2,000 bootstrap resamples on the test logits) for Micro-F1, Macro-F1, Weighted-F1, Top-3 Accuracy, and per-class F1.
+- [x] Compare `Legal-BERT` vs. `TF-IDF Baseline` using a Paired Bootstrap test (95% CI on $\Delta \text{Macro-F1}$): `paired_bootstrap_difference()`.
+- [x] Group the 100 clause categories into **3 Reliability Tiers** based on 95% CI lower bound and CI width:
   - *Tier 1 (Green — Auto-Tag Ready)*
   - *Tier 2 (Amber — Human-in-the-Loop Assisted)*
   - *Tier 3 (Red — Do Not Deploy / Statistically Unverified, e.g., `Books`)*
-- [ ] Compute Expected Calibration Error (ECE), apply Temperature Scaling on `val_logits.npy`, and generate the forest plot & reliability diagram for the presentation.
+- [x] Compute Expected Calibration Error (ECE), apply Temperature Scaling on the validation logits, and generate the forest plot & reliability diagram for the presentation (`outputs/evaluation/`, run with `uv run python -m src.evaluation`).
+- [x] Split conformal 95% prediction sets for the auto-tag / shortlist / escalate routing: `conformal_prediction_sets()`.
 
 ### Clause Bank Retrieval & Bias / Failure-Mode Audit
 - [ ] Implement `ClauseBankRetriever` in [`src/retrieval.py`](src/retrieval.py) using `sentence-transformers/all-MiniLM-L6-v2` (dense cosine similarity) + `BM25` (lexical matching).
@@ -97,8 +102,18 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 
 ## 5. Setup Instructions
 
+With [uv](https://docs.astral.sh/uv/) (recommended):
+
+```bash
+uv sync
+uv run python -m src.evaluation   # regenerates outputs/evaluation/
+```
+
+With pip:
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+python -m src.evaluation
 ```
