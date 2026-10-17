@@ -5,13 +5,22 @@ venv/
 env/
 .pytest_cache/
 
-# Byte-compiled Python
+# Secrets
+.env
+
+# Byte-compiled Python & packaging
 __pycache__/
 *.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+.ruff_cache/
+.mypy_cache/
 
 # Heavy model weights & caches
 checkpoints/
 data_cache/
+outputs/best_model/
+outputs.zip
 *.pt
 *.pth
 *.bin
