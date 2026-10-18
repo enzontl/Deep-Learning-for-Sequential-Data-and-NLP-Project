@@ -10,7 +10,7 @@ Tasks in this module:
 3. Semantic Taxonomy Overlap Analysis   [IMPLEMENTE : run_taxonomy_overlap_audit]:
    Analyze top confusion pairs (e.g., 'Governing Laws' vs 'Submission To Jurisdiction', 'Amendments' vs 'Waivers')
    caused by compound boilerplate clauses.
-4. US SEC Training Data vs. European Legal-Tech Deployment Bias:
+4. US SEC Training Data vs. European Legal-Tech Deployment Bias   [IMPLEMENTE : run_us_to_eu_counterfactual_audit]:
    - Identify US-specific statutory classes in LEDGAR ('Erisa', 'Waiver Of Jury Trials').
    - Run a Counterfactual Perturbation Test (swapping US states/courts/statutes/currencies like 'Delaware', '$', 'SEC'
      with European equivalents like 'France', 'EUR', 'ESMA', 'GDPR') and measure prediction flip rate & confidence drop.
@@ -18,11 +18,13 @@ Tasks in this module:
 Depuis la racine du projet :
     python -m src.bias_audit --audit length
     python -m src.bias_audit --audit taxonomy
+    python -m src.bias_audit --audit counterfactual
 """
 
 import argparse
 import csv
 import json
+import re
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -232,11 +234,200 @@ def _main_taxonomy() -> None:
     print(f"\nFichiers ecrits dans {AUDIT_DIR}/taxonomy_audit.json et taxonomy_top_pairs.csv")
 
 
-def run_us_to_eu_counterfactual_audit(
-    test_texts: List[str], test_labels: np.ndarray
+# ----------------------------------------------------------------------------------------------
+# Audit 3 : US -> Europe (test contrefactuel)
+# ----------------------------------------------------------------------------------------------
+# Idee : on prend les clauses de test qui contiennent un element americain (Etat, dollar, SEC, ERISA),
+# on le remplace par un equivalent europeen, et on regarde si le modele change d'avis (flip) et s'il
+# devient moins sur de lui. Les regles de remplacement sont fixees ICI, avant de voir les resultats.
+
+_US_STATES = [
+    "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida",
+    "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine",
+    "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska",
+    "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio",
+    "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas",
+    "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming",
+]
+_STATE_ALT = "|".join(re.escape(x) for x in sorted(_US_STATES, key=len, reverse=True))
+# "the State of New York", "Commonwealth of Massachusetts" : groupe 1 = le debut, groupe 2 = le nom de l'Etat
+_STATE_RE = re.compile(rf"\b((?:the\s+)?(?:State|Commonwealth)\s+of\s+)({_STATE_ALT})\b", re.IGNORECASE)
+# noms seuls, uniquement les 4 plus frequents (et pas "New York Stock Exchange")
+_BARE_RE = re.compile(r"\b(Delaware|New York|California|Texas)\b(?!\s+(?:Stock Exchange|Times|Mellon))", re.IGNORECASE)
+_DOLLAR_SIGN_RE = re.compile(r"\$\s?(?=\d)")
+_DOLLAR_WORD_RE = re.compile(r"\b(?:(?:U\.S\.|US|United States)\s+)?dollars?\b", re.IGNORECASE)
+_SEC_LONG_RE = re.compile(r"\bSecurities and Exchange Commission\b", re.IGNORECASE)
+_SEC_ABBR_RE = re.compile(r"\bSEC\b")  # sensible a la casse : seulement "SEC" en majuscules
+_ERISA_LONG_RE = re.compile(r"\bEmployee Retirement Income Security Act(?: of 1974)?", re.IGNORECASE)
+_ERISA_ABBR_RE = re.compile(r"\bERISA\b")
+
+_US_ROTATION = {"delaware": "Ohio", "new york": "California", "california": "Texas", "texas": "Florida"}
+
+
+def _match_case(source: str, replacement: str) -> str:
+    return replacement.upper() if source.isupper() and len(source) > 3 else replacement
+
+
+def _swap_jurisdiction(text: str, state_phrase: str, country: str) -> str:
+    text = _STATE_RE.sub(lambda m: _match_case(m.group(0), state_phrase), text)
+    return _BARE_RE.sub(lambda m: _match_case(m.group(0), country), text)
+
+
+def _swap_currency(text: str) -> str:
+    text = _DOLLAR_SIGN_RE.sub("EUR ", text)
+
+    def word(m: "re.Match") -> str:
+        plural = m.group(0).lower().endswith("s")
+        new = "euros" if plural else "euro"
+        return new.capitalize() if m.group(0)[0].isupper() else new
+
+    return _DOLLAR_WORD_RE.sub(word, text)
+
+
+def _swap_regulator(text: str) -> str:
+    text = _SEC_LONG_RE.sub("European Securities and Markets Authority", text)
+    return _SEC_ABBR_RE.sub("ESMA", text)
+
+
+def _swap_statute(text: str) -> str:
+    text = _ERISA_LONG_RE.sub("General Data Protection Regulation", text)
+    return _ERISA_ABBR_RE.sub("GDPR", text)
+
+
+def _control_us_swap(text: str) -> str:
+    """Temoin : on change d'Etat americain (Delaware -> Ohio...) : un changement 'neutre', reste aux USA."""
+    def state(m: "re.Match") -> str:
+        return m.group(1) + _match_case(m.group(2), _US_ROTATION.get(m.group(2).lower(), "Ohio"))
+
+    text = _STATE_RE.sub(state, text)
+    return _BARE_RE.sub(lambda m: _match_case(m.group(0), _US_ROTATION[m.group(0).lower()]), text)
+
+
+def _compose(*functions):
+    def run(text: str) -> str:
+        for f in functions:
+            text = f(text)
+        return text
+    return run
+
+
+def make_perturbations() -> Dict[str, Any]:
+    fr = lambda t: _swap_jurisdiction(t, "the Republic of France", "France")
+    de = lambda t: _swap_jurisdiction(t, "the Federal Republic of Germany", "Germany")
+    return {
+        "control_US_swap": _control_us_swap,
+        "juris_FR": fr,
+        "juris_DE": de,
+        "currency_EUR": _swap_currency,
+        "regulator_ESMA": _swap_regulator,
+        "all_FR": _compose(fr, _swap_currency, _swap_regulator),
+        "all_DE": _compose(de, _swap_currency, _swap_regulator),
+        "statute_GDPR": _swap_statute,  # test de stress : l'etiquette n'est plus forcement juste
+    }
+
+
+US_SPECIFIC_CLASSES = ("Erisa", "Waiver Of Jury Trials")
+
+
+def _bootstrap_mean_ci(values, n_boot: int = 2000, confidence: float = 0.95, seed: int = 42) -> Dict[str, float]:
+    """Moyenne + IC bootstrap (percentiles), memes reglages que le reste du projet (2000 tirages, seed 42)."""
+    values = np.asarray(values, dtype=np.float64)
+    rng = np.random.default_rng(seed)
+    means = values[rng.integers(0, len(values), size=(n_boot, len(values)))].mean(axis=1)
+    alpha = (1 - confidence) / 2
+    lo, hi = np.quantile(means, [alpha, 1 - alpha])
+    return {"estimate": float(values.mean()), "ci_lower": float(lo), "ci_upper": float(hi)}
+
+
+def _evaluate_variant(
+    transform, test_texts, y_true, predict_logits, base_logits, label_names, n_boot: int = 2000, seed: int = 42
 ) -> Dict[str, Any]:
-    """TODO (Person 3): Perturb US legal entities/jurisdictions to EU equivalents and measure flip rate."""
-    raise NotImplementedError("TODO (Person 3): Implement US->EU counterfactual bias audit.")
+    from src.evaluation import softmax
+
+    perturbed = [transform(t) for t in test_texts]
+    changed = np.array([a != b for a, b in zip(test_texts, perturbed)])
+    idx = np.where(changed)[0]
+    out: Dict[str, Any] = {"n_changed": int(len(idx)), "share_changed": float(len(idx) / len(test_texts))}
+    if len(idx) == 0:
+        return out, idx, []
+    new_texts = [perturbed[i] for i in idx]
+    old_logits, new_logits = base_logits[idx], predict_logits(new_texts)
+    p_old, p_new = softmax(old_logits), softmax(new_logits)
+    pred_old, pred_new = p_old.argmax(axis=1), p_new.argmax(axis=1)
+    y = y_true[idx]
+    flips = pred_old != pred_new
+
+    k, n = int(flips.sum()), len(idx)
+    p, lo, hi = wilson_confidence_interval(k, n)
+    out["flip_rate"] = {"k": k, "n": n, "p": p, "ci_lower": lo, "ci_upper": hi}
+    for tag, pred in (("original", pred_old), ("perturbed", pred_new)):
+        kk = int((pred == y).sum())
+        pp, l, h = wilson_confidence_interval(kk, n)
+        out[f"accuracy_{tag}"] = {"k": kk, "n": n, "p": pp, "ci_lower": l, "ci_upper": h}
+    out["confidence_drop"] = _bootstrap_mean_ci(p_old.max(axis=1) - p_new.max(axis=1), n_boot, seed=seed)
+    out["mean_confidence_original"] = float(p_old.max(axis=1).mean())
+
+    transitions: Dict[Any, int] = {}
+    for a, b in zip(pred_old[flips], pred_new[flips]):
+        transitions[(label_names[a], label_names[b])] = transitions.get((label_names[a], label_names[b]), 0) + 1
+    out["top_flips"] = [
+        {"from": a, "to": b, "count": c} for (a, b), c in sorted(transitions.items(), key=lambda kv: -kv[1])[:5]
+    ]
+
+    per_class = {}
+    for cname in US_SPECIFIC_CLASSES:
+        if cname not in label_names:
+            continue
+        mask = y == label_names.index(cname)
+        nn, kk = int(mask.sum()), int(flips[mask].sum())
+        pp, l, h = wilson_confidence_interval(kk, nn)
+        per_class[cname] = {"n_changed": nn, "n_flips": kk, "p": pp, "ci_lower": l, "ci_upper": h}
+    out["us_specific_classes"] = per_class
+    return out, idx, new_texts
+
+
+def run_us_to_eu_counterfactual_audit(
+    test_texts: List[str], test_labels: np.ndarray, predict_logits, label_names: List[str]
+) -> Dict[str, Any]:
+    """Pour chaque remplacement : taux de changement de prediction (flip) et baisse de confiance.
+    `predict_logits(textes)` doit renvoyer un tableau (n_textes, n_classes)."""
+    y_true = np.asarray(test_labels)
+    base_logits = np.asarray(predict_logits(list(test_texts)))
+    results: Dict[str, Any] = {"variants": {}}
+    exports: Dict[str, Any] = {}
+    for name, transform in make_perturbations().items():
+        res, idx, new_texts = _evaluate_variant(transform, test_texts, y_true, predict_logits, base_logits, label_names)
+        results["variants"][name] = res
+        exports[name] = {"indices": [int(i) for i in idx], "texts": new_texts}
+    return {"results": results, "exports": exports}
+
+
+def format_counterfactual_report(model: str, results: Dict[str, Any]) -> str:
+    lines = [f"\n=== {model} : test contrefactuel US -> Europe ==="]
+    lines.append(f"{'variante':<17} {'clauses changees':>17}   {'flip [IC 95 %]':<24} {'exactitude avant -> apres':<27} {'baisse de confiance [IC 95 %]'}")
+    for name, r in results["variants"].items():
+        if r["n_changed"] == 0:
+            lines.append(f"{name:<17} {0:>17}   (aucune clause concernee)")
+            continue
+        f, a0, a1, c = r["flip_rate"], r["accuracy_original"], r["accuracy_perturbed"], r["confidence_drop"]
+        lines.append(
+            f"{name:<17} {r['n_changed']:>6} ({100 * r['share_changed']:>4.1f} %)   "
+            f"{f['p']:.3f} [{f['ci_lower']:.3f}; {f['ci_upper']:.3f}]   "
+            f"{a0['p']:.3f} -> {a1['p']:.3f}           "
+            f"{c['estimate']:+.4f} [{c['ci_lower']:+.4f}; {c['ci_upper']:+.4f}]"
+        )
+    for name in ("all_FR", "juris_FR", "regulator_ESMA", "statute_GDPR"):
+        r = results["variants"].get(name)
+        if not r or r["n_changed"] == 0:
+            continue
+        lines.append(f"\n--- {name} : changements de categorie les plus frequents ---")
+        for t in r["top_flips"]:
+            lines.append(f"   {t['count']:>4}  {t['from']}  ->  {t['to']}")
+        for cname, d in r["us_specific_classes"].items():
+            if d["n_changed"] == 0:
+                continue
+            lines.append(f"   classe americaine {cname}: {d['n_flips']}/{d['n_changed']} changent = {d['p']:.3f} [{d['ci_lower']:.3f}; {d['ci_upper']:.3f}]")
+    return "\n".join(lines)
 
 
 def _main_length() -> None:
@@ -260,11 +451,68 @@ def _main_length() -> None:
     print(f"\nFichiers ecrits dans {AUDIT_DIR}/length_audit.json et .csv")
 
 
+def _train_or_load_tfidf(train_texts, train_labels, cache_dir: Path):
+    """Reentraine TF-IDF + regression logistique avec EXACTEMENT les reglages de src/train.py (personne 1)."""
+    import joblib
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_file = cache_dir / "tfidf_model.joblib"
+    if cache_file.exists():
+        return joblib.load(cache_file)
+    vectorizer = TfidfVectorizer(max_features=50000, ngram_range=(1, 2), sublinear_tf=True, min_df=2)
+    x_train = vectorizer.fit_transform(train_texts)
+    clf = LogisticRegression(C=2.0, max_iter=300, random_state=42)
+    clf.fit(x_train, train_labels)
+    joblib.dump((vectorizer, clf), cache_file)
+    return vectorizer, clf
+
+
+def _main_counterfactual() -> None:
+    from src.data import load_ledgar
+
+    dataset, _ = load_ledgar()
+    test_texts = dataset["test"]["text"]
+    test_labels = np.array(dataset["test"]["label"])
+    saved_labels = np.load(OUTPUTS_DIR / "test_labels.npy")
+    if len(saved_labels) != len(test_labels) or not np.array_equal(saved_labels, test_labels):
+        raise SystemExit("ERREUR : l'ordre du test ne correspond pas a outputs/test_labels.npy -> on arrete.")
+    with open(OUTPUTS_DIR / "label_names.json", encoding="utf-8") as f:
+        label_names = json.load(f)
+
+    print("Entrainement de TF-IDF + regression logistique (quelques minutes la 1re fois, ensuite c'est en cache)...")
+    vectorizer, clf = _train_or_load_tfidf(dataset["train"]["text"], np.array(dataset["train"]["label"]), AUDIT_DIR / "_cache")
+
+    def predict_logits(texts):
+        return clf.decision_function(vectorizer.transform(texts)).astype(np.float32)
+
+    # controle : notre TF-IDF doit retrouver (presque) les memes predictions que celui de la personne 1
+    ours = predict_logits(test_texts).argmax(axis=1)
+    theirs = np.load(OUTPUTS_DIR / "tfidf_test_logits.npy").argmax(axis=1)
+    print(f"Controle : accord avec les predictions TF-IDF de la personne 1 = {100 * (ours == theirs).mean():.2f} %"
+          f" | notre exactitude sur le test = {(ours == test_labels).mean():.4f}")
+
+    out = run_us_to_eu_counterfactual_audit(test_texts, test_labels, predict_logits, label_names)
+    print(format_counterfactual_report("TF-IDF", out["results"]))
+
+    AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    with open(AUDIT_DIR / "counterfactual_audit.json", "w", encoding="utf-8") as f:
+        json.dump({"model": "TF-IDF (reentraine, memes reglages que la personne 1)", "results": out["results"]},
+                  f, indent=2, ensure_ascii=False)
+    # textes modifies : pour que la personne 1 les passe dans Legal-BERT (Colab) et renvoie les logits
+    with open(AUDIT_DIR / "counterfactual_perturbed_texts.json", "w", encoding="utf-8") as f:
+        json.dump(out["exports"], f, ensure_ascii=False)
+    print(f"\nFichiers ecrits dans {AUDIT_DIR}/counterfactual_audit.json et counterfactual_perturbed_texts.json")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audits de biais (personne 3)")
-    parser.add_argument("--audit", choices=("length", "taxonomy"), required=True)
+    parser.add_argument("--audit", choices=("length", "taxonomy", "counterfactual"), required=True)
     args = parser.parse_args()
     if args.audit == "length":
         _main_length()
     elif args.audit == "taxonomy":
         _main_taxonomy()
+    elif args.audit == "counterfactual":
+        _main_counterfactual()

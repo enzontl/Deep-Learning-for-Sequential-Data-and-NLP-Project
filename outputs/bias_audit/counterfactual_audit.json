@@ -1,0 +1,538 @@
+{
+  "model": "TF-IDF (reentraine, memes reglages que la personne 1)",
+  "results": {
+    "variants": {
+      "control_US_swap": {
+        "n_changed": 897,
+        "share_changed": 0.0897,
+        "flip_rate": {
+          "k": 6,
+          "n": 897,
+          "p": 0.006688963210702341,
+          "ci_lower": 0.0030691117672401414,
+          "ci_upper": 0.014516067806347014
+        },
+        "accuracy_original": {
+          "k": 771,
+          "n": 897,
+          "p": 0.8595317725752508,
+          "ci_lower": 0.8352563912434692,
+          "ci_upper": 0.8807408507622216
+        },
+        "accuracy_perturbed": {
+          "k": 770,
+          "n": 897,
+          "p": 0.8584169453734671,
+          "ci_lower": 0.8340717215501663,
+          "ci_upper": 0.8797053739686851
+        },
+        "confidence_drop": {
+          "estimate": 0.016559352909309277,
+          "ci_lower": 0.014285024356641033,
+          "ci_upper": 0.01881570953402332
+        },
+        "mean_confidence_original": 0.8019611239433289,
+        "top_flips": [
+          {
+            "from": "Governing Laws",
+            "to": "Applicable Laws",
+            "count": 3
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Venues",
+            "count": 1
+          },
+          {
+            "from": "Severability",
+            "to": "Governing Laws",
+            "count": 1
+          },
+          {
+            "from": "Venues",
+            "to": "Jurisdictions",
+            "count": 1
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 2,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.6576197724933469
+          }
+        }
+      },
+      "juris_FR": {
+        "n_changed": 915,
+        "share_changed": 0.0915,
+        "flip_rate": {
+          "k": 23,
+          "n": 915,
+          "p": 0.025136612021857924,
+          "ci_lower": 0.01680735072039896,
+          "ci_upper": 0.037436456350152865
+        },
+        "accuracy_original": {
+          "k": 788,
+          "n": 915,
+          "p": 0.8612021857923498,
+          "ci_lower": 0.8372862926175215,
+          "ci_upper": 0.8820978771481462
+        },
+        "accuracy_perturbed": {
+          "k": 779,
+          "n": 915,
+          "p": 0.8513661202185793,
+          "ci_lower": 0.8268493772041493,
+          "ci_upper": 0.8729449059415758
+        },
+        "confidence_drop": {
+          "estimate": 0.04799542281308461,
+          "ci_lower": 0.043700949684233284,
+          "ci_upper": 0.05224834719479409
+        },
+        "mean_confidence_original": 0.8009767532348633,
+        "top_flips": [
+          {
+            "from": "Governing Laws",
+            "to": "Applicable Laws",
+            "count": 3
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Arbitration",
+            "count": 3
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Waiver Of Jury Trials",
+            "count": 2
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Severability",
+            "count": 2
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Venues",
+            "count": 2
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 2,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.6576197724933469
+          }
+        }
+      },
+      "juris_DE": {
+        "n_changed": 915,
+        "share_changed": 0.0915,
+        "flip_rate": {
+          "k": 19,
+          "n": 915,
+          "p": 0.020765027322404372,
+          "ci_lower": 0.013333275325369197,
+          "ci_upper": 0.032203915469652615
+        },
+        "accuracy_original": {
+          "k": 788,
+          "n": 915,
+          "p": 0.8612021857923498,
+          "ci_lower": 0.8372862926175215,
+          "ci_upper": 0.8820978771481462
+        },
+        "accuracy_perturbed": {
+          "k": 783,
+          "n": 915,
+          "p": 0.8557377049180328,
+          "ci_lower": 0.8314835868282322,
+          "ci_upper": 0.877017312593023
+        },
+        "confidence_drop": {
+          "estimate": 0.048291033058544326,
+          "ci_lower": 0.04422921523512875,
+          "ci_upper": 0.05222779870827178
+        },
+        "mean_confidence_original": 0.8009767532348633,
+        "top_flips": [
+          {
+            "from": "Governing Laws",
+            "to": "Applicable Laws",
+            "count": 4
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Venues",
+            "count": 2
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Arbitration",
+            "count": 2
+          },
+          {
+            "from": "Miscellaneous",
+            "to": "Counterparts",
+            "count": 1
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Jurisdictions",
+            "count": 1
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 2,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.6576197724933469
+          }
+        }
+      },
+      "currency_EUR": {
+        "n_changed": 376,
+        "share_changed": 0.0376,
+        "flip_rate": {
+          "k": 1,
+          "n": 376,
+          "p": 0.0026595744680851063,
+          "ci_lower": 0.00046963457337238,
+          "ci_upper": 0.014909041674423973
+        },
+        "accuracy_original": {
+          "k": 342,
+          "n": 376,
+          "p": 0.9095744680851063,
+          "ci_lower": 0.8762952957801585,
+          "ci_upper": 0.9345693237804796
+        },
+        "accuracy_perturbed": {
+          "k": 343,
+          "n": 376,
+          "p": 0.9122340425531915,
+          "ci_lower": 0.87930590436359,
+          "ci_upper": 0.93682406986952
+        },
+        "confidence_drop": {
+          "estimate": 0.002055148851681263,
+          "ci_lower": 0.0004939649278852857,
+          "ci_upper": 0.004064447252931905
+        },
+        "mean_confidence_original": 0.8057544231414795,
+        "top_flips": [
+          {
+            "from": "Payments",
+            "to": "Fees",
+            "count": 1
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 6,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 2.7755575615628914e-17,
+            "ci_upper": 0.3903342879021653
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          }
+        }
+      },
+      "regulator_ESMA": {
+        "n_changed": 159,
+        "share_changed": 0.0159,
+        "flip_rate": {
+          "k": 0,
+          "n": 159,
+          "p": 0.0,
+          "ci_lower": 0.0,
+          "ci_upper": 0.023590176902824132
+        },
+        "accuracy_original": {
+          "k": 150,
+          "n": 159,
+          "p": 0.9433962264150944,
+          "ci_lower": 0.8959348401114677,
+          "ci_upper": 0.9699380218803675
+        },
+        "accuracy_perturbed": {
+          "k": 150,
+          "n": 159,
+          "p": 0.9433962264150944,
+          "ci_lower": 0.8959348401114677,
+          "ci_upper": 0.9699380218803675
+        },
+        "confidence_drop": {
+          "estimate": 0.004322998811426402,
+          "ci_lower": 0.0024403963741735095,
+          "ci_upper": 0.006449722923314983
+        },
+        "mean_confidence_original": 0.8606625199317932,
+        "top_flips": [],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          }
+        }
+      },
+      "all_FR": {
+        "n_changed": 1435,
+        "share_changed": 0.1435,
+        "flip_rate": {
+          "k": 24,
+          "n": 1435,
+          "p": 0.016724738675958188,
+          "ci_lower": 0.0112644336973477,
+          "ci_upper": 0.024765567038928356
+        },
+        "accuracy_original": {
+          "k": 1266,
+          "n": 1435,
+          "p": 0.8822299651567944,
+          "ci_lower": 0.8645230401616931,
+          "ci_upper": 0.897895913834201
+        },
+        "accuracy_perturbed": {
+          "k": 1258,
+          "n": 1435,
+          "p": 0.8766550522648083,
+          "ci_lower": 0.8586288046474643,
+          "ci_upper": 0.8926700916784805
+        },
+        "confidence_drop": {
+          "estimate": 0.03161708752296943,
+          "ci_lower": 0.028619993237927816,
+          "ci_upper": 0.03468125724950838
+        },
+        "mean_confidence_original": 0.8087725639343262,
+        "top_flips": [
+          {
+            "from": "Governing Laws",
+            "to": "Applicable Laws",
+            "count": 3
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Arbitration",
+            "count": 3
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Waiver Of Jury Trials",
+            "count": 2
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Severability",
+            "count": 2
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Venues",
+            "count": 2
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 6,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 2.7755575615628914e-17,
+            "ci_upper": 0.3903342879021653
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 2,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.6576197724933469
+          }
+        }
+      },
+      "all_DE": {
+        "n_changed": 1435,
+        "share_changed": 0.1435,
+        "flip_rate": {
+          "k": 20,
+          "n": 1435,
+          "p": 0.013937282229965157,
+          "ci_lower": 0.009040184160677056,
+          "ci_upper": 0.02142978774062438
+        },
+        "accuracy_original": {
+          "k": 1266,
+          "n": 1435,
+          "p": 0.8822299651567944,
+          "ci_lower": 0.8645230401616931,
+          "ci_upper": 0.897895913834201
+        },
+        "accuracy_perturbed": {
+          "k": 1262,
+          "n": 1435,
+          "p": 0.8794425087108014,
+          "ci_lower": 0.8615744802626792,
+          "ci_upper": 0.8952844448982402
+        },
+        "confidence_drop": {
+          "estimate": 0.031805649911173545,
+          "ci_lower": 0.02892572213301779,
+          "ci_upper": 0.03473049367028402
+        },
+        "mean_confidence_original": 0.8087725639343262,
+        "top_flips": [
+          {
+            "from": "Governing Laws",
+            "to": "Applicable Laws",
+            "count": 4
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Venues",
+            "count": 2
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Arbitration",
+            "count": 2
+          },
+          {
+            "from": "Miscellaneous",
+            "to": "Counterparts",
+            "count": 1
+          },
+          {
+            "from": "Governing Laws",
+            "to": "Jurisdictions",
+            "count": 1
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 6,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 2.7755575615628914e-17,
+            "ci_upper": 0.3903342879021653
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 2,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.6576197724933469
+          }
+        }
+      },
+      "statute_GDPR": {
+        "n_changed": 95,
+        "share_changed": 0.0095,
+        "flip_rate": {
+          "k": 6,
+          "n": 95,
+          "p": 0.06315789473684211,
+          "ci_lower": 0.02926488835484705,
+          "ci_upper": 0.1310065100006925
+        },
+        "accuracy_original": {
+          "k": 87,
+          "n": 95,
+          "p": 0.9157894736842105,
+          "ci_lower": 0.8425478687567327,
+          "ci_upper": 0.9567118846157054
+        },
+        "accuracy_perturbed": {
+          "k": 81,
+          "n": 95,
+          "p": 0.8526315789473684,
+          "ci_lower": 0.7677140150925396,
+          "ci_upper": 0.9101391934638322
+        },
+        "confidence_drop": {
+          "estimate": 0.18867710962107306,
+          "ci_lower": 0.1392253272568709,
+          "ci_upper": 0.23707836707759838
+        },
+        "mean_confidence_original": 0.8222878575325012,
+        "top_flips": [
+          {
+            "from": "Erisa",
+            "to": "General",
+            "count": 3
+          },
+          {
+            "from": "Erisa",
+            "to": "Notices",
+            "count": 2
+          },
+          {
+            "from": "Erisa",
+            "to": "Litigations",
+            "count": 1
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 55,
+            "n_flips": 6,
+            "p": 0.10909090909090909,
+            "ci_lower": 0.05096725000782336,
+            "ci_upper": 0.21825549086553508
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 0,
+            "n_flips": 0,
+            "p": NaN,
+            "ci_lower": 0.0,
+            "ci_upper": 1.0
+          }
+        }
+      }
+    }
+  }
+}
