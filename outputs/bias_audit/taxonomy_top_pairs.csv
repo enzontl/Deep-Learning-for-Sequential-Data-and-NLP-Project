@@ -1,0 +1,21 @@
+model,rank,class_a,class_b,a_as_b,b_as_a,total,share_of_all_errors
+Legal-BERT,1,Tax Withholdings,Withholdings,46,14,60,0.042796005706134094
+Legal-BERT,2,Applicable Laws,Governing Laws,42,0,42,0.029957203994293864
+Legal-BERT,3,Defined Terms,Definitions,39,2,41,0.029243937232524966
+Legal-BERT,4,Authority,Authorizations,12,22,34,0.024251069900142655
+Legal-BERT,5,Construction,Interpretations,13,19,32,0.02282453637660485
+Legal-BERT,6,No Waivers,Waivers,18,13,31,0.02211126961483595
+Legal-BERT,7,Binding Effects,Successors,8,22,30,0.021398002853067047
+Legal-BERT,8,Entire Agreements,Integration,0,30,30,0.021398002853067047
+Legal-BERT,9,Amendments,Modifications,8,21,29,0.020684736091298145
+Legal-BERT,10,Representations,Warranties,10,18,28,0.019971469329529243
+TF-IDF,1,Applicable Laws,Governing Laws,40,0,40,0.029433406916850625
+TF-IDF,2,No Waivers,Waivers,24,13,37,0.027225901398086828
+TF-IDF,3,Defined Terms,Definitions,16,16,32,0.0235467255334805
+TF-IDF,4,Tax Withholdings,Withholdings,21,11,32,0.0235467255334805
+TF-IDF,5,Amendments,Modifications,3,22,25,0.01839587932303164
+TF-IDF,6,Binding Effects,Successors,6,19,25,0.01839587932303164
+TF-IDF,7,Entire Agreements,Integration,0,22,22,0.016188373804267846
+TF-IDF,8,Authority,Authorizations,8,13,21,0.01545253863134658
+TF-IDF,9,General,Payments,16,2,18,0.013245033112582781
+TF-IDF,10,Representations,Warranties,7,11,18,0.013245033112582781

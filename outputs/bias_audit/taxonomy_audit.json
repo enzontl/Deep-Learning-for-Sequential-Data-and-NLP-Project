@@ -1,0 +1,404 @@
+{
+  "Legal-BERT": {
+    "n_test": 10000,
+    "n_errors": 1402,
+    "top_pairs": [
+      {
+        "class_a": "Tax Withholdings",
+        "class_b": "Withholdings",
+        "a_as_b": 46,
+        "b_as_a": 14,
+        "total": 60,
+        "share_of_all_errors": 0.042796005706134094,
+        "rank": 1
+      },
+      {
+        "class_a": "Applicable Laws",
+        "class_b": "Governing Laws",
+        "a_as_b": 42,
+        "b_as_a": 0,
+        "total": 42,
+        "share_of_all_errors": 0.029957203994293864,
+        "rank": 2
+      },
+      {
+        "class_a": "Defined Terms",
+        "class_b": "Definitions",
+        "a_as_b": 39,
+        "b_as_a": 2,
+        "total": 41,
+        "share_of_all_errors": 0.029243937232524966,
+        "rank": 3
+      },
+      {
+        "class_a": "Authority",
+        "class_b": "Authorizations",
+        "a_as_b": 12,
+        "b_as_a": 22,
+        "total": 34,
+        "share_of_all_errors": 0.024251069900142655,
+        "rank": 4
+      },
+      {
+        "class_a": "Construction",
+        "class_b": "Interpretations",
+        "a_as_b": 13,
+        "b_as_a": 19,
+        "total": 32,
+        "share_of_all_errors": 0.02282453637660485,
+        "rank": 5
+      },
+      {
+        "class_a": "No Waivers",
+        "class_b": "Waivers",
+        "a_as_b": 18,
+        "b_as_a": 13,
+        "total": 31,
+        "share_of_all_errors": 0.02211126961483595,
+        "rank": 6
+      },
+      {
+        "class_a": "Binding Effects",
+        "class_b": "Successors",
+        "a_as_b": 8,
+        "b_as_a": 22,
+        "total": 30,
+        "share_of_all_errors": 0.021398002853067047,
+        "rank": 7
+      },
+      {
+        "class_a": "Entire Agreements",
+        "class_b": "Integration",
+        "a_as_b": 0,
+        "b_as_a": 30,
+        "total": 30,
+        "share_of_all_errors": 0.021398002853067047,
+        "rank": 8
+      },
+      {
+        "class_a": "Amendments",
+        "class_b": "Modifications",
+        "a_as_b": 8,
+        "b_as_a": 21,
+        "total": 29,
+        "share_of_all_errors": 0.020684736091298145,
+        "rank": 9
+      },
+      {
+        "class_a": "Representations",
+        "class_b": "Warranties",
+        "a_as_b": 10,
+        "b_as_a": 18,
+        "total": 28,
+        "share_of_all_errors": 0.019971469329529243,
+        "rank": 10
+      }
+    ],
+    "top_pairs_share_of_errors": 0.25463623395149787,
+    "examples": [
+      {
+        "pair": "Tax Withholdings / Withholdings",
+        "true": "Tax Withholdings",
+        "predicted": "Withholdings",
+        "text_start": "The Company shall have the right to deduct applicable taxes from any Grant payment and withhold, at the time of delivery or exercise of Options, Stock Awards or Restricted Stock Purchase Offers or vesting of shares under"
+      },
+      {
+        "pair": "Tax Withholdings / Withholdings",
+        "true": "Tax Withholdings",
+        "predicted": "Withholdings",
+        "text_start": "Employee must pay, or make arrangements acceptable to the Company for the payment of any and all federal, state and local tax withholding that in the opinion of the Company is required by law. Unless Employee satisfies a"
+      },
+      {
+        "pair": "Tax Withholdings / Withholdings",
+        "true": "Tax Withholdings",
+        "predicted": "Withholdings",
+        "text_start": "The Company will withhold all applicable taxes from any Actual Award, including any federal, state and local taxes (including, but not limited to, the Participant’s FICA and SDI obligations)."
+      },
+      {
+        "pair": "Applicable Laws / Governing Laws",
+        "true": "Applicable Laws",
+        "predicted": "Governing Laws",
+        "text_start": "THIS AMENDMENT AND ANY CLAIMS, CONTROVERSY, DISPUTE OR CAUSES OF ACTION (WHETHER IN CONTRACT OR TORT OR OTHERWISE) BASED UPON, ARISING OUT OF OR RELATING TO THIS AMENDMENT SHALL BE CONSTRUED IN ACCORDANCE WITH AND GOVERN"
+      },
+      {
+        "pair": "Applicable Laws / Governing Laws",
+        "true": "Applicable Laws",
+        "predicted": "Governing Laws",
+        "text_start": "To the extent not preempted by the laws of the United States, the laws of the State of California (without regard to the choice of law rules) shall be the controlling law in all matters relating to the Plan."
+      },
+      {
+        "pair": "Applicable Laws / Governing Laws",
+        "true": "Applicable Laws",
+        "predicted": "Governing Laws",
+        "text_start": "This Agreement is entered into under, and shall be governed for all purposes by, the laws of the state of Texas, except as may be preempted by federal law."
+      },
+      {
+        "pair": "Defined Terms / Definitions",
+        "true": "Defined Terms",
+        "predicted": "Definitions",
+        "text_start": "Capitalized terms used but not defined herein shall have the meanings assigned to such terms in the Amended Credit Agreement.  The rules of interpretation set forth in Section 1.03 of the Original Credit Agreement are he"
+      },
+      {
+        "pair": "Defined Terms / Definitions",
+        "true": "Defined Terms",
+        "predicted": "Definitions",
+        "text_start": "The meaning of capitalized terms used in the Plan are set forth in Section 7."
+      },
+      {
+        "pair": "Defined Terms / Definitions",
+        "true": "Definitions",
+        "predicted": "Defined Terms",
+        "text_start": "Each capitalized term which is defined in the Credit Agreement but which is not defined in this Amendment, shall have the meaning assigned to such term in the Credit Agreement. Unless otherwise indicated, all section ref"
+      }
+    ],
+    "readme_pairs": [
+      {
+        "pair": "Governing Laws / Submission To Jurisdiction",
+        "keywords": [
+          "govern",
+          "jurisdiction"
+        ],
+        "rank_among_pairs": 366,
+        "n_confused": 1,
+        "share_with_both_keywords_confused": {
+          "n": 1,
+          "k": 1,
+          "p": 1.0,
+          "ci_lower": 0.20654931437723745,
+          "ci_upper": 1.0
+        },
+        "share_with_both_keywords_correct": {
+          "n": 595,
+          "k": 186,
+          "p": 0.3126050420168067,
+          "ci_lower": 0.27666039470509896,
+          "ci_upper": 0.3509538983347372
+        }
+      },
+      {
+        "pair": "Amendments / Waivers",
+        "keywords": [
+          "amend",
+          "waive"
+        ],
+        "rank_among_pairs": 72,
+        "n_confused": 4,
+        "share_with_both_keywords_confused": {
+          "n": 4,
+          "k": 4,
+          "p": 1.0,
+          "ci_lower": 0.5101091635454027,
+          "ci_upper": 1.0
+        },
+        "share_with_both_keywords_correct": {
+          "n": 339,
+          "k": 43,
+          "p": 0.12684365781710916,
+          "ci_lower": 0.09555002892823077,
+          "ci_upper": 0.16649954678449297
+        }
+      }
+    ]
+  },
+  "TF-IDF": {
+    "n_test": 10000,
+    "n_errors": 1359,
+    "top_pairs": [
+      {
+        "class_a": "Applicable Laws",
+        "class_b": "Governing Laws",
+        "a_as_b": 40,
+        "b_as_a": 0,
+        "total": 40,
+        "share_of_all_errors": 0.029433406916850625,
+        "rank": 1
+      },
+      {
+        "class_a": "No Waivers",
+        "class_b": "Waivers",
+        "a_as_b": 24,
+        "b_as_a": 13,
+        "total": 37,
+        "share_of_all_errors": 0.027225901398086828,
+        "rank": 2
+      },
+      {
+        "class_a": "Defined Terms",
+        "class_b": "Definitions",
+        "a_as_b": 16,
+        "b_as_a": 16,
+        "total": 32,
+        "share_of_all_errors": 0.0235467255334805,
+        "rank": 3
+      },
+      {
+        "class_a": "Tax Withholdings",
+        "class_b": "Withholdings",
+        "a_as_b": 21,
+        "b_as_a": 11,
+        "total": 32,
+        "share_of_all_errors": 0.0235467255334805,
+        "rank": 4
+      },
+      {
+        "class_a": "Amendments",
+        "class_b": "Modifications",
+        "a_as_b": 3,
+        "b_as_a": 22,
+        "total": 25,
+        "share_of_all_errors": 0.01839587932303164,
+        "rank": 5
+      },
+      {
+        "class_a": "Binding Effects",
+        "class_b": "Successors",
+        "a_as_b": 6,
+        "b_as_a": 19,
+        "total": 25,
+        "share_of_all_errors": 0.01839587932303164,
+        "rank": 6
+      },
+      {
+        "class_a": "Entire Agreements",
+        "class_b": "Integration",
+        "a_as_b": 0,
+        "b_as_a": 22,
+        "total": 22,
+        "share_of_all_errors": 0.016188373804267846,
+        "rank": 7
+      },
+      {
+        "class_a": "Authority",
+        "class_b": "Authorizations",
+        "a_as_b": 8,
+        "b_as_a": 13,
+        "total": 21,
+        "share_of_all_errors": 0.01545253863134658,
+        "rank": 8
+      },
+      {
+        "class_a": "General",
+        "class_b": "Payments",
+        "a_as_b": 16,
+        "b_as_a": 2,
+        "total": 18,
+        "share_of_all_errors": 0.013245033112582781,
+        "rank": 9
+      },
+      {
+        "class_a": "Representations",
+        "class_b": "Warranties",
+        "a_as_b": 7,
+        "b_as_a": 11,
+        "total": 18,
+        "share_of_all_errors": 0.013245033112582781,
+        "rank": 10
+      }
+    ],
+    "top_pairs_share_of_errors": 0.1986754966887417,
+    "examples": [
+      {
+        "pair": "Applicable Laws / Governing Laws",
+        "true": "Applicable Laws",
+        "predicted": "Governing Laws",
+        "text_start": "THIS AMENDMENT AND ANY CLAIMS, CONTROVERSY, DISPUTE OR CAUSES OF ACTION (WHETHER IN CONTRACT OR TORT OR OTHERWISE) BASED UPON, ARISING OUT OF OR RELATING TO THIS AMENDMENT SHALL BE CONSTRUED IN ACCORDANCE WITH AND GOVERN"
+      },
+      {
+        "pair": "Applicable Laws / Governing Laws",
+        "true": "Applicable Laws",
+        "predicted": "Governing Laws",
+        "text_start": "This Agreement is entered into under, and shall be governed for all purposes by, the laws of the state of Texas, except as may be preempted by federal law."
+      },
+      {
+        "pair": "Applicable Laws / Governing Laws",
+        "true": "Applicable Laws",
+        "predicted": "Governing Laws",
+        "text_start": "This Agreement is entered into under, and shall be governed for all purposes, by the laws of the State of Texas, without regard to its conflicts of law principles."
+      },
+      {
+        "pair": "No Waivers / Waivers",
+        "true": "Waivers",
+        "predicted": "No Waivers",
+        "text_start": "No waiver of any term or condition of this Note shall be construed to be a waiver of any succeeding breach of the same term or condition.  No failure or delay of Payee to exercise any power hereunder, or it insists upon "
+      },
+      {
+        "pair": "No Waivers / Waivers",
+        "true": "Waivers",
+        "predicted": "No Waivers",
+        "text_start": "The rights, powers and remedies of Lender under this Agreement shall be cumulative and not exclusive of any other right, power or remedy which Lender may have against the members of Borrower pursuant to this Agreement, t"
+      },
+      {
+        "pair": "No Waivers / Waivers",
+        "true": "No Waivers",
+        "predicted": "Waivers",
+        "text_start": "No delay or failure on the part of any party hereto in exercising any right, power or privilege under this Agreement or under any other instrument or document given in connection with or pursuant to this Agreement shall "
+      },
+      {
+        "pair": "Defined Terms / Definitions",
+        "true": "Definitions",
+        "predicted": "Defined Terms",
+        "text_start": "Each capitalized term which is defined in the Credit Agreement but which is not defined in this Amendment, shall have the meaning assigned to such term in the Credit Agreement. Unless otherwise indicated, all section ref"
+      },
+      {
+        "pair": "Defined Terms / Definitions",
+        "true": "Definitions",
+        "predicted": "Defined Terms",
+        "text_start": "Capitalized terms used herein and not otherwise defined herein shall have the meanings ascribed to such terms in the Amended Credit Agreement."
+      },
+      {
+        "pair": "Defined Terms / Definitions",
+        "true": "Defined Terms",
+        "predicted": "Definitions",
+        "text_start": "Any capitalized terms used but not defined in this Amendment shall have the meaning set forth in the License Agreement."
+      }
+    ],
+    "readme_pairs": [
+      {
+        "pair": "Governing Laws / Submission To Jurisdiction",
+        "keywords": [
+          "govern",
+          "jurisdiction"
+        ],
+        "rank_among_pairs": 179,
+        "n_confused": 2,
+        "share_with_both_keywords_confused": {
+          "n": 2,
+          "k": 2,
+          "p": 1.0,
+          "ci_lower": 0.34238022750665303,
+          "ci_upper": 1.0
+        },
+        "share_with_both_keywords_correct": {
+          "n": 594,
+          "k": 186,
+          "p": 0.31313131313131315,
+          "ci_lower": 0.27713730029284367,
+          "ci_upper": 0.351526793298259
+        }
+      },
+      {
+        "pair": "Amendments / Waivers",
+        "keywords": [
+          "amend",
+          "waive"
+        ],
+        "rank_among_pairs": 91,
+        "n_confused": 3,
+        "share_with_both_keywords_confused": {
+          "n": 3,
+          "k": 3,
+          "p": 1.0,
+          "ci_lower": 0.4385029682449546,
+          "ci_upper": 1.0
+        },
+        "share_with_both_keywords_correct": {
+          "n": 348,
+          "k": 44,
+          "p": 0.12643678160919541,
+          "ci_lower": 0.09555040768427428,
+          "ci_upper": 0.16548039615711865
+        }
+      }
+    ]
+  }
+}
