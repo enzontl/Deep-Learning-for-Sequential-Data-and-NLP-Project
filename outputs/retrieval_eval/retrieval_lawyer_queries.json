@@ -1,0 +1,429 @@
+{
+  "config": {
+    "date_utc": "2026-10-18T16:58:34+00:00",
+    "bank_size": 60000,
+    "bank_fingerprint": "4e881288af",
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+    "top_k": 5,
+    "queries": [
+      {
+        "category": "Terminations",
+        "query": "Show me termination clauses with a 30-day notice period",
+        "rule": "\\b(?:30|thirty)(?:\\s*\\(\\s*30\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Terminations",
+        "query": "Termination clauses requiring 60 days prior written notice",
+        "rule": "\\b(?:60|sixty)(?:\\s*\\(\\s*60\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Terminations",
+        "query": "Termination clauses requiring 90 days prior written notice",
+        "rule": "\\b(?:90|ninety)(?:\\s*\\(\\s*90\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Terminations",
+        "query": "Termination for breach if not cured within 10 days",
+        "rule": "\\b(?:10|ten)(?:\\s*\\(\\s*10\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Payments",
+        "query": "Payment due within 30 days of receipt of invoice",
+        "rule": "\\b(?:30|thirty)(?:\\s*\\(\\s*30\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Payments",
+        "query": "Invoices must be paid within 45 days",
+        "rule": "\\b(?:45|forty[\\s-]five)(?:\\s*\\(\\s*45\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Payments",
+        "query": "Payment terms net 60 days from the invoice date",
+        "rule": "\\b(?:60|sixty)(?:\\s*\\(\\s*60\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Payments",
+        "query": "Amounts are payable within 15 days after the due date",
+        "rule": "\\b(?:15|fifteen)(?:\\s*\\(\\s*15\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Terms",
+        "query": "This agreement has an initial term of three years",
+        "rule": "\\b(?:3|three)(?:\\s*\\(\\s*3\\s*\\))?[\\s-]+years?\\b"
+      },
+      {
+        "category": "Terms",
+        "query": "This agreement has an initial term of one year",
+        "rule": "\\b(?:1|one)(?:\\s*\\(\\s*1\\s*\\))?[\\s-]+years?\\b"
+      },
+      {
+        "category": "Terms",
+        "query": "This agreement has an initial term of five years",
+        "rule": "\\b(?:5|five)(?:\\s*\\(\\s*5\\s*\\))?[\\s-]+years?\\b"
+      },
+      {
+        "category": "Terms",
+        "query": "This agreement has an initial term of two years",
+        "rule": "\\b(?:2|two)(?:\\s*\\(\\s*2\\s*\\))?[\\s-]+years?\\b"
+      },
+      {
+        "category": "Notices",
+        "query": "Notice is deemed received three days after mailing",
+        "rule": "\\b(?:3|three)(?:\\s*\\(\\s*3\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Notices",
+        "query": "Notice is deemed received five days after mailing",
+        "rule": "\\b(?:5|five)(?:\\s*\\(\\s*5\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Notices",
+        "query": "Notice is deemed received ten days after mailing",
+        "rule": "\\b(?:10|ten)(?:\\s*\\(\\s*10\\s*\\))?[\\s-]+(?:\\w+[\\s-]+)?days?\\b"
+      },
+      {
+        "category": "Notices",
+        "query": "Notice is deemed received 48 hours after being sent",
+        "rule": "\\b(?:48|forty[\\s-]eight)(?:\\s*\\(\\s*48\\s*\\))?[\\s-]+hours?\\b"
+      },
+      {
+        "category": "Governing Laws",
+        "query": "This agreement is governed by the laws of the State of New York",
+        "rule": "state\\s+of\\s+new\\s+york"
+      },
+      {
+        "category": "Governing Laws",
+        "query": "This agreement is governed by the laws of the State of Delaware",
+        "rule": "state\\s+of\\s+delaware"
+      },
+      {
+        "category": "Governing Laws",
+        "query": "This agreement is governed by the laws of the State of California",
+        "rule": "state\\s+of\\s+california"
+      },
+      {
+        "category": "Governing Laws",
+        "query": "This agreement is governed by the laws of the State of Texas",
+        "rule": "state\\s+of\\s+texas"
+      }
+    ],
+    "bootstrap": {
+      "n_boot": 2000,
+      "seed": 42,
+      "confidence": 0.95,
+      "resampling": "queries"
+    },
+    "versions": {
+      "numpy": "2.4.6",
+      "scipy": "1.17.1",
+      "sentence-transformers": "6.1.0"
+    }
+  },
+  "results": {
+    "n_queries": 20,
+    "gold_counts": {
+      "Show me termination clauses with a 30-day notice period": 58,
+      "Termination clauses requiring 60 days prior written notice": 18,
+      "Termination clauses requiring 90 days prior written notice": 19,
+      "Termination for breach if not cured within 10 days": 22,
+      "Payment due within 30 days of receipt of invoice": 57,
+      "Invoices must be paid within 45 days": 8,
+      "Payment terms net 60 days from the invoice date": 21,
+      "Amounts are payable within 15 days after the due date": 13,
+      "This agreement has an initial term of three years": 61,
+      "This agreement has an initial term of one year": 185,
+      "This agreement has an initial term of five years": 51,
+      "This agreement has an initial term of two years": 58,
+      "Notice is deemed received three days after mailing": 259,
+      "Notice is deemed received five days after mailing": 178,
+      "Notice is deemed received ten days after mailing": 68,
+      "Notice is deemed received 48 hours after being sent": 20,
+      "This agreement is governed by the laws of the State of New York": 999,
+      "This agreement is governed by the laws of the State of Delaware": 578,
+      "This agreement is governed by the laws of the State of California": 229,
+      "This agreement is governed by the laws of the State of Texas": 178
+    },
+    "modes": {
+      "dense": {
+        "precision": {
+          "estimate": 0.45,
+          "ci_lower": 0.3,
+          "ci_upper": 0.61
+        },
+        "mrr": {
+          "estimate": 0.6641666666666667,
+          "ci_lower": 0.4683333333333334,
+          "ci_upper": 0.8417708333333329
+        },
+        "hit_rate": {
+          "estimate": 0.8,
+          "ci_lower": 0.6,
+          "ci_upper": 0.95
+        },
+        "category_only_precision": {
+          "estimate": 0.8099999999999999,
+          "ci_lower": 0.68,
+          "ci_upper": 0.9199999999999999
+        }
+      },
+      "bm25": {
+        "precision": {
+          "estimate": 0.69,
+          "ci_lower": 0.5499999999999999,
+          "ci_upper": 0.8200000000000001
+        },
+        "mrr": {
+          "estimate": 0.8875,
+          "ci_lower": 0.775,
+          "ci_upper": 0.975
+        },
+        "hit_rate": {
+          "estimate": 1.0,
+          "ci_lower": 1.0,
+          "ci_upper": 1.0
+        },
+        "category_only_precision": {
+          "estimate": 0.8100000000000002,
+          "ci_lower": 0.7,
+          "ci_upper": 0.9099999999999999
+        }
+      },
+      "hybrid": {
+        "precision": {
+          "estimate": 0.6100000000000001,
+          "ci_lower": 0.4600000000000001,
+          "ci_upper": 0.7500000000000001
+        },
+        "mrr": {
+          "estimate": 0.8,
+          "ci_lower": 0.6375,
+          "ci_upper": 0.9375
+        },
+        "hit_rate": {
+          "estimate": 0.9,
+          "ci_lower": 0.75,
+          "ci_upper": 1.0
+        },
+        "category_only_precision": {
+          "estimate": 0.8100000000000002,
+          "ci_lower": 0.67,
+          "ci_upper": 0.9299999999999999
+        }
+      },
+      "dense+filtre": {
+        "precision": {
+          "estimate": 0.55,
+          "ci_lower": 0.38,
+          "ci_upper": 0.7100000000000001
+        },
+        "mrr": {
+          "estimate": 0.7375,
+          "ci_lower": 0.5375,
+          "ci_upper": 0.9
+        },
+        "hit_rate": {
+          "estimate": 0.8,
+          "ci_lower": 0.6,
+          "ci_upper": 0.95
+        },
+        "category_only_precision": {
+          "estimate": 1.0,
+          "ci_lower": 1.0,
+          "ci_upper": 1.0
+        }
+      },
+      "hybrid+filtre": {
+        "precision": {
+          "estimate": 0.6799999999999999,
+          "ci_lower": 0.5399999999999999,
+          "ci_upper": 0.82
+        },
+        "mrr": {
+          "estimate": 0.8833333333333334,
+          "ci_lower": 0.75,
+          "ci_upper": 1.0
+        },
+        "hit_rate": {
+          "estimate": 0.95,
+          "ci_lower": 0.85,
+          "ci_upper": 1.0
+        },
+        "category_only_precision": {
+          "estimate": 1.0,
+          "ci_lower": 1.0,
+          "ci_upper": 1.0
+        }
+      }
+    },
+    "paired_differences": {
+      "hybrid_minus_dense": {
+        "precision": {
+          "estimate": 0.16,
+          "ci_lower": 0.06999999999999999,
+          "ci_upper": 0.25000000000000006,
+          "significant": true
+        },
+        "mrr": {
+          "estimate": 0.13583333333333333,
+          "ci_lower": -0.05424999999999986,
+          "ci_upper": 0.33333333333333337,
+          "significant": false
+        }
+      },
+      "hybrid+filtre_minus_dense": {
+        "precision": {
+          "estimate": 0.23000000000000004,
+          "ci_lower": 0.13999999999999999,
+          "ci_upper": 0.31000000000000005,
+          "significant": true
+        },
+        "mrr": {
+          "estimate": 0.21916666666666665,
+          "ci_lower": 0.024999999999999988,
+          "ci_upper": 0.41756249999999967,
+          "significant": true
+        }
+      },
+      "hybrid+filtre_minus_hybrid": {
+        "precision": {
+          "estimate": 0.06999999999999999,
+          "ci_lower": 0.009999999999999998,
+          "ci_upper": 0.15,
+          "significant": true
+        },
+        "mrr": {
+          "estimate": 0.08333333333333333,
+          "ci_lower": 0.004166666666666666,
+          "ci_upper": 0.1875,
+          "significant": true
+        }
+      },
+      "dense+filtre_minus_dense": {
+        "precision": {
+          "estimate": 0.1,
+          "ci_lower": 0.030000000000000006,
+          "ci_upper": 0.19,
+          "significant": true
+        },
+        "mrr": {
+          "estimate": 0.07333333333333333,
+          "ci_lower": 0.0,
+          "ci_upper": 0.17166666666666666,
+          "significant": false
+        }
+      }
+    },
+    "per_query_precision": {
+      "dense": [
+        0.2,
+        0.2,
+        0.4,
+        0.2,
+        0.8,
+        0.0,
+        0.0,
+        0.4,
+        0.6,
+        0.6,
+        0.8,
+        0.2,
+        1.0,
+        0.0,
+        0.2,
+        0.0,
+        1.0,
+        1.0,
+        0.8,
+        0.6
+      ],
+      "bm25": [
+        0.2,
+        0.4,
+        0.8,
+        0.2,
+        0.8,
+        0.2,
+        0.2,
+        0.8,
+        1.0,
+        1.0,
+        1.0,
+        0.8,
+        0.8,
+        1.0,
+        0.2,
+        1.0,
+        1.0,
+        0.8,
+        1.0,
+        0.6
+      ],
+      "hybrid": [
+        0.0,
+        0.6,
+        0.8,
+        0.2,
+        0.8,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0,
+        1.0,
+        0.4,
+        1.0,
+        0.6,
+        0.0,
+        0.4,
+        1.0,
+        1.0,
+        0.8,
+        0.6
+      ],
+      "dense+filtre": [
+        1.0,
+        0.4,
+        0.6,
+        0.4,
+        0.8,
+        0.0,
+        0.0,
+        0.4,
+        0.6,
+        0.6,
+        1.0,
+        0.2,
+        1.0,
+        0.0,
+        0.2,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        0.8
+      ],
+      "hybrid+filtre": [
+        0.6,
+        0.6,
+        0.8,
+        0.2,
+        1.0,
+        0.2,
+        0.4,
+        0.6,
+        0.8,
+        1.0,
+        1.0,
+        0.4,
+        1.0,
+        0.6,
+        0.0,
+        0.4,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  }
+}
