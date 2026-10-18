@@ -2,8 +2,9 @@
 Person 3 — Bias Audit & Failure-Mode Analysis
 =============================================
 Tasks in this module:
-1. Sample-Size / Long-Tail Bias:
-   Compare model F1 and 95% CI width across Head classes (n_train >= 1000) vs. Tail classes (n_train < 150).
+1. Sample-Size / Long-Tail Bias   [IMPLEMENTE : run_long_tail_audit]:
+   Compare model F1 and 95% CI width across Head classes (n_train >= 1000), Medium (150 <= n_train < 1000),
+   and Tail classes (n_train < 150) across Legal-BERT, TF-IDF, and the Calibrated Ensemble.
 2. Clause Length & Truncation Bias   [IMPLEMENTE : run_length_truncation_audit]
    Evaluate accuracy (with 95% CIs) across clause word-length buckets (<80, 80-160, 160-260, >260 words)
    to quantify the impact of BERT's 256/512 subword token truncation limit.
@@ -16,9 +17,11 @@ Tasks in this module:
      with European equivalents like 'France', 'EUR', 'ESMA', 'GDPR') and measure prediction flip rate & confidence drop.
 
 Depuis la racine du projet :
+    python -m src.bias_audit --audit long-tail
     python -m src.bias_audit --audit length
     python -m src.bias_audit --audit taxonomy
     python -m src.bias_audit --audit counterfactual
+    python -m src.bias_audit --audit plots
 """
 
 import argparse
@@ -506,13 +509,292 @@ def _main_counterfactual() -> None:
     print(f"\nFichiers ecrits dans {AUDIT_DIR}/counterfactual_audit.json et counterfactual_perturbed_texts.json")
 
 
+# ----------------------------------------------------------------------------------------------
+# Audit 0 (Task 1) : Sample-Size / Long-Tail Bias (Head vs. Medium vs. Tail classes)
+# ----------------------------------------------------------------------------------------------
+
+TRAIN_SIZE_BUCKETS = [
+    ("Head (n_train >= 1000)", 1000, 10**9),
+    ("Medium (150 <= n_train < 1000)", 150, 1000),
+    ("Tail (n_train < 150)", 0, 150),
+]
+
+
+def run_long_tail_audit(outputs_dir: Path = OUTPUTS_DIR) -> Dict[str, Any]:
+    """
+    Compare F1 et largeur de l'IC 95 % entre les classes Head (n_train >= 1000),
+    Medium (150 <= n_train < 1000) et Tail (n_train < 150) pour Legal-BERT, TF-IDF et Ensemble.
+    """
+    import pandas as pd
+
+    dist = pd.read_csv(outputs_dir / "class_distribution.csv")
+    eval_dir = outputs_dir / "evaluation"
+    models = {
+        "Legal-BERT": pd.read_csv(eval_dir / "legal_bert_per_class.csv"),
+        "TF-IDF": pd.read_csv(eval_dir / "tfidf_per_class.csv"),
+        "Ensemble": pd.read_csv(eval_dir / "ensemble_per_class.csv"),
+    }
+
+    results_by_model: Dict[str, List[Dict[str, Any]]] = {}
+    for model_name, df_eval in models.items():
+        merged = pd.merge(dist, df_eval, on=["class_id", "class_name"], how="inner")
+        rows = []
+        for bucket_name, low, high in TRAIN_SIZE_BUCKETS:
+            sub = merged[(merged["train_count"] >= low) & (merged["train_count"] < high)]
+            rows.append({
+                "bucket": bucket_name,
+                "n_classes": int(len(sub)),
+                "mean_train_count": float(sub["train_count"].mean()),
+                "mean_test_count": float(sub["n_test"].mean()),
+                "mean_f1": float(sub["f1"].mean()),
+                "median_f1": float(sub["f1"].median()),
+                "min_f1": float(sub["f1"].min()),
+                "mean_ci_width": float(sub["f1_ci_width"].mean()),
+                "max_ci_width": float(sub["f1_ci_width"].max()),
+                "n_zero_f1": int((sub["f1"] == 0.0).sum()),
+                "zero_f1_classes": sub.loc[sub["f1"] == 0.0, "class_name"].tolist(),
+                "tier_1_auto": int((sub["tier"].str.startswith("Tier 1")).sum()),
+                "tier_2_assisted": int((sub["tier"].str.startswith("Tier 2")).sum()),
+                "tier_3_blocked": int((sub["tier"].str.startswith("Tier 3")).sum()),
+            })
+        results_by_model[model_name] = rows
+
+    # 10 classes les plus rares dans le jeu d'entrainement
+    tail_10 = dist.sort_values("train_count", ascending=True).head(10)
+    tail_comparison = []
+    for _, row in tail_10.iterrows():
+        cid = int(row["class_id"])
+        entry: Dict[str, Any] = {
+            "class_id": cid,
+            "class_name": row["class_name"],
+            "n_train": int(row["train_count"]),
+            "n_test": int(row["test_count"]),
+        }
+        for model_name, df_eval in models.items():
+            m_row = df_eval[df_eval["class_id"] == cid].iloc[0]
+            entry[model_name] = {
+                "f1": float(m_row["f1"]),
+                "ci_lower": float(m_row["f1_ci_lower"]),
+                "ci_upper": float(m_row["f1_ci_upper"]),
+                "ci_width": float(m_row["f1_ci_width"]),
+                "tier": str(m_row["tier"]),
+            }
+        tail_comparison.append(entry)
+
+    return {"buckets_by_model": results_by_model, "rarest_10_classes": tail_comparison}
+
+
+def _main_long_tail() -> None:
+    res = run_long_tail_audit()
+    AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    with open(AUDIT_DIR / "long_tail_audit.json", "w", encoding="utf-8") as f:
+        json.dump(res, f, indent=2, ensure_ascii=False)
+    with open(AUDIT_DIR / "long_tail_audit.csv", "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "model", "bucket", "n_classes", "mean_train_count", "mean_test_count",
+            "mean_f1", "median_f1", "min_f1", "mean_ci_width", "max_ci_width",
+            "n_zero_f1", "tier_1_auto", "tier_2_assisted", "tier_3_blocked",
+        ])
+        for model_name, rows in res["buckets_by_model"].items():
+            for r in rows:
+                writer.writerow([
+                    model_name, r["bucket"], r["n_classes"], r["mean_train_count"], r["mean_test_count"],
+                    r["mean_f1"], r["median_f1"], r["min_f1"], r["mean_ci_width"], r["max_ci_width"],
+                    r["n_zero_f1"], r["tier_1_auto"], r["tier_2_assisted"], r["tier_3_blocked"],
+                ])
+
+    for model_name, rows in res["buckets_by_model"].items():
+        print(f"\n=== {model_name} : Biais de taille d'echantillon (Head / Medium / Tail) ===")
+        print(f"{'Tranche':<32} {'Classes':>7} {'F1 moyen':>9} {'Largeur IC moy':>15} {'F1=0':>6} {'T1/T2/T3':>12}")
+        for r in rows:
+            tiers = f"{r['tier_1_auto']}/{r['tier_2_assisted']}/{r['tier_3_blocked']}"
+            print(
+                f"{r['bucket']:<32} {r['n_classes']:>7} {r['mean_f1']:>9.3f} "
+                f"{r['mean_ci_width']:>15.3f} {r['n_zero_f1']:>6} {tiers:>12}"
+            )
+    print(f"\nFichiers ecrits dans {AUDIT_DIR}/long_tail_audit.json et .csv")
+
+
+def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
+    """Genere les figures PNG pour la presentation (Retrieval, Long-Tail, Longueur, Contrefactuel US->EU)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import pandas as pd
+
+    audit_dir = outputs_dir / "bias_audit"
+    retr_dir = outputs_dir / "retrieval_eval"
+    audit_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1) Long-Tail Bias : largeur de l'IC 95 % et F1 en fonction de n_train (echelle log)
+    dist = pd.read_csv(outputs_dir / "class_distribution.csv")
+    lb = pd.read_csv(outputs_dir / "evaluation" / "legal_bert_per_class.csv")
+    tf = pd.read_csv(outputs_dir / "evaluation" / "tfidf_per_class.csv")
+    ens = pd.read_csv(outputs_dir / "evaluation" / "ensemble_per_class.csv")
+    m_lb = pd.merge(dist, lb, on=["class_id", "class_name"])
+    m_tf = pd.merge(dist, tf, on=["class_id", "class_name"])
+    m_ens = pd.merge(dist, ens, on=["class_id", "class_name"])
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
+    axes[0].scatter(m_lb["train_count"], m_lb["f1"], alpha=0.65, s=26, color="#c0392b", label="Legal-BERT (5 classes à F1=0)")
+    axes[0].scatter(m_ens["train_count"], m_ens["f1"], alpha=0.75, s=26, color="#2e8b57", label="Ensemble (0.45 LB + 0.55 TF-IDF)")
+    axes[0].axvline(150, color="grey", linestyle="--", linewidth=1, label="Seuil Tail (n_train = 150)")
+    axes[0].axvline(1000, color="black", linestyle=":", linewidth=1, label="Seuil Head (n_train = 1000)")
+    axes[0].set_xscale("log")
+    axes[0].set_xlabel("Taille d'entraînement n_train (échelle log)")
+    axes[0].set_ylabel("F1 par classe sur le test")
+    axes[0].set_ylim(-0.04, 1.03)
+    axes[0].set_title("Effondrement de Legal-BERT sur la longue traîne (Tail)")
+    axes[0].legend(fontsize=8, loc="lower right")
+
+    axes[1].scatter(m_ens["n_test"], m_ens["f1_ci_width"], alpha=0.75, s=28, color="#2b6cb0")
+    for _, r in m_ens.nsmallest(5, "n_test").iterrows():
+        axes[1].annotate(
+            f"{r['class_name']} (n={int(r['n_test'])})",
+            (r["n_test"], r["f1_ci_width"]),
+            textcoords="offset points",
+            xytext=(6, 2),
+            fontsize=7.5,
+        )
+    axes[1].axhline(0.30, color="#c0392b", linestyle="--", linewidth=1, label="Plafond Auto-Tag (largeur IC <= 0.30)")
+    axes[1].set_xscale("log")
+    axes[1].set_xlabel("Taille d'échantillon test n_test (échelle log)")
+    axes[1].set_ylabel("Largeur de l'IC 95 % du F1")
+    axes[1].set_title("Explosion de l'incertitude (IC 95 %) quand n_test < 15")
+    axes[1].legend(fontsize=8, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(audit_dir / "long_tail_bias.png", dpi=150)
+    plt.close(fig)
+
+    # 2) Length & Truncation Bias
+    if (audit_dir / "length_audit.json").exists():
+        with open(audit_dir / "length_audit.json", encoding="utf-8") as f:
+            len_data = json.load(f)["results"]
+        buckets = [r["bucket"] for r in len_data["Legal-BERT"]]
+        x = np.arange(len(buckets))
+        width = 0.34
+        fig, ax = plt.subplots(figsize=(8.2, 4.6))
+        for i, (m_name, color) in enumerate((("Legal-BERT", "#c0392b"), ("TF-IDF", "#2b6cb0"))):
+            rows = len_data[m_name]
+            acc = np.array([r["accuracy"] for r in rows])
+            lo = acc - np.array([r["ci_lower"] for r in rows])
+            hi = np.array([r["ci_upper"] for r in rows]) - acc
+            offset = (i - 0.5) * width
+            ax.bar(x + offset, acc, width=width, color=color, alpha=0.88, label=m_name)
+            ax.errorbar(x + offset, acc, yerr=[lo, hi], fmt="none", ecolor="black", capsize=4, lw=1.2)
+        ax.set_xticks(x)
+        ax.set_xticklabels([f"{b} mots\n(n={r['n']})" for b, r in zip(buckets, len_data["Legal-BERT"])])
+        ax.set_ylim(0.78, 0.94)
+        ax.set_ylabel("Exactitude (Accuracy) + IC 95 % de Wilson")
+        ax.set_title("Audit 1 — Biais de longueur & troncature à 256 tokens (>260 mots : TF-IDF +2.2 pts)")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(audit_dir / "length_truncation_bias.png", dpi=150)
+        plt.close(fig)
+
+    # 3) US -> EU Counterfactual Perturbation Audit
+    if (audit_dir / "counterfactual_audit.json").exists():
+        with open(audit_dir / "counterfactual_audit.json", encoding="utf-8") as f:
+            cf = json.load(f)["results"]["variants"]
+        order = ["control_US_swap", "currency_EUR", "regulator_ESMA", "juris_DE", "juris_FR", "all_FR", "statute_GDPR"]
+        labels = [
+            "Témoin US\n(Delaware->Ohio)",
+            "Devise\n($ -> EUR)",
+            "Régulateur\n(SEC -> ESMA)",
+            "Droit allemand\n(-> Germany)",
+            "Droit français\n(-> France)",
+            "Contrat FR complet\n(FR + EUR + ESMA)",
+            "Statut social/RGPD\n(ERISA -> GDPR)",
+        ]
+        y = np.arange(len(order))
+        flips = np.array([100 * cf[k]["flip_rate"]["p"] for k in order])
+        f_lo = flips - np.array([100 * cf[k]["flip_rate"]["ci_lower"] for k in order])
+        f_hi = np.array([100 * cf[k]["flip_rate"]["ci_upper"] for k in order]) - flips
+
+        drops = np.array([100 * cf[k]["confidence_drop"]["estimate"] for k in order])
+        d_lo = drops - np.array([100 * cf[k]["confidence_drop"]["ci_lower"] for k in order])
+        d_hi = np.array([100 * cf[k]["confidence_drop"]["ci_upper"] for k in order]) - drops
+
+        fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6), sharey=True)
+        colors = ["#7f8c8d", "#2e8b57", "#2e8b57", "#e69f00", "#e69f00", "#d35400", "#c0392b"]
+        axes[0].barh(y, flips, color=colors, alpha=0.88)
+        axes[0].errorbar(flips, y, xerr=[f_lo, f_hi], fmt="none", ecolor="black", capsize=3, lw=1.1)
+        axes[0].set_yticks(y)
+        axes[0].set_yticklabels(labels, fontsize=8.5)
+        axes[0].set_xlabel("Taux de bascule de prédiction (Flip Rate %, IC 95 %)")
+        axes[0].set_title("Changement d'avis du modèle (US -> UE)")
+
+        axes[1].barh(y, drops, color=colors, alpha=0.88)
+        axes[1].errorbar(drops, y, xerr=[d_lo, d_hi], fmt="none", ecolor="black", capsize=3, lw=1.1)
+        axes[1].set_xlabel("Baisse moyenne de confiance (points de %, IC 95 %)")
+        axes[1].set_title("Chute de probabilité (Confiance avant - après)")
+        fig.suptitle("Audit 3 — Test contrefactuel de transfert US (SEC) -> Droit Européen")
+        fig.tight_layout()
+        fig.savefig(audit_dir / "counterfactual_audit.png", dpi=150)
+        plt.close(fig)
+
+    # 4) Clause Bank Retrieval Comparison (Clause-to-Clause vs Lawyer Constraint Queries)
+    if (retr_dir / "retrieval_eval_test.json").exists() and (retr_dir / "retrieval_lawyer_queries.json").exists():
+        with open(retr_dir / "retrieval_eval_test.json", encoding="utf-8") as f:
+            r_test = json.load(f)["results"]["modes"]
+        with open(retr_dir / "retrieval_lawyer_queries.json", encoding="utf-8") as f:
+            r_law = json.load(f)["results"]["modes"]
+
+        fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
+        # Panel A: Clause-to-Clause (n=1000 test queries)
+        m1 = ["dense", "bm25", "hybrid"]
+        lbl1 = ["Dense\n(MiniLM-L6)", "BM25\n(Lexical)", "Hybrid\n(RRF)"]
+        p1 = np.array([100 * r_test[m]["all"]["precision"]["estimate"] for m in m1])
+        p1_lo = p1 - np.array([100 * r_test[m]["all"]["precision"]["ci_lower"] for m in m1])
+        p1_hi = np.array([100 * r_test[m]["all"]["precision"]["ci_upper"] for m in m1]) - p1
+        x1 = np.arange(len(m1))
+        axes[0].bar(x1, p1, color=["#7f8c8d", "#2b6cb0", "#2e8b57"], width=0.52, alpha=0.9)
+        axes[0].errorbar(x1, p1, yerr=[p1_lo, p1_hi], fmt="none", ecolor="black", capsize=4, lw=1.2)
+        axes[0].set_xticks(x1)
+        axes[0].set_xticklabels(lbl1)
+        axes[0].set_ylim(68, 82)
+        axes[0].set_ylabel("Precision@5 (%, IC 95 % Bootstrap)")
+        axes[0].set_title("Recherche Clause-à-Clause (Test, n=1 000)\nHybrid bat Dense de +2.0 pts* (significatif)")
+
+        # Panel B: Lawyer Constraint Queries (n=20 queries with numbers/states)
+        m2 = ["dense", "dense+filtre", "hybrid", "bm25", "hybrid+filtre"]
+        lbl2 = ["Dense\nseul", "Dense\n+ Filtre", "Hybrid\nseul", "BM25\nseul", "Hybrid\n+ Filtre"]
+        p2 = np.array([100 * r_law[m]["precision"]["estimate"] for m in m2])
+        p2_lo = p2 - np.array([100 * r_law[m]["precision"]["ci_lower"] for m in m2])
+        p2_hi = np.array([100 * r_law[m]["precision"]["ci_upper"] for m in m2]) - p2
+        x2 = np.arange(len(m2))
+        axes[1].bar(x2, p2, color=["#c0392b", "#e69f00", "#2b6cb0", "#34495e", "#2e8b57"], width=0.58, alpha=0.9)
+        axes[1].errorbar(x2, p2, yerr=[p2_lo, p2_hi], fmt="none", ecolor="black", capsize=4, lw=1.2)
+        axes[1].set_xticks(x2)
+        axes[1].set_xticklabels(lbl2, fontsize=8.5)
+        axes[1].set_ylim(0, 95)
+        axes[1].set_ylabel("Precision@5 (%, IC 95 % Bootstrap)")
+        axes[1].set_title("Requêtes Avocat avec Contrainte Chiffrée (n=20)\nDense s'effondre à 45 % ('30 days' vs '60 days') ; Hybrid+Filtre = 68 %*")
+
+        fig.tight_layout()
+        fig.savefig(retr_dir / "retrieval_comparison.png", dpi=150)
+        plt.close(fig)
+
+    print(f"Figures PNG generees dans {audit_dir} et {retr_dir}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audits de biais (personne 3)")
-    parser.add_argument("--audit", choices=("length", "taxonomy", "counterfactual"), required=True)
+    parser.add_argument(
+        "--audit",
+        choices=("long-tail", "length", "taxonomy", "counterfactual", "plots"),
+        required=True,
+    )
     args = parser.parse_args()
-    if args.audit == "length":
+    if args.audit == "long-tail":
+        _main_long_tail()
+    elif args.audit == "length":
         _main_length()
     elif args.audit == "taxonomy":
         _main_taxonomy()
     elif args.audit == "counterfactual":
         _main_counterfactual()
+    elif args.audit == "plots":
+        generate_audit_and_retrieval_plots()

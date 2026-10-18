@@ -20,12 +20,15 @@ __pycache__/
 checkpoints/
 data_cache/
 outputs/best_model/
+outputs/retrieval/
+outputs/bias_audit/_cache/
 outputs.zip
 *.pt
 *.pth
 *.bin
 *.safetensors
 *.faiss
+*.joblib
 
 # OS / IDE
 .DS_Store
