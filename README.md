@@ -88,7 +88,7 @@ To keep our codebase clean, modular, and production-ready (using `.py` modules r
 - [x] Split conformal 95% prediction sets for the auto-tag / shortlist / escalate routing: `conformal_prediction_sets()`.
 
 ### Clause Bank Retrieval & Bias / Failure-Mode Audit
-- [ ] Implement `ClauseBankRetriever` in [`src/retrieval.py`](src/retrieval.py) using `sentence-transformers/all-MiniLM-L6-v2` (dense cosine similarity) + `BM25` (lexical matching).
+- [x] Implement `ClauseBankRetriever` in [`src/retrieval.py`](src/retrieval.py) using `sentence-transformers/all-MiniLM-L6-v2` (dense cosine similarity) + `BM25` (lexical matching).
 - [ ] Evaluate retrieval quantitatively with 95% CIs on:
   - Clause-to-clause precedent search (Precision@5, MRR@5).
   - Lawyer constraint queries (e.g., *"show me termination clauses with a 30-day notice period"*), comparing Pure Dense vs. Hybrid (Dense + BM25 + Category Filter).
