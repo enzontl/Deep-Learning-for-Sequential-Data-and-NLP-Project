@@ -18,14 +18,97 @@ Implemented in this module:
    `uv run python -m src.evaluation`
 """
 
+import csv
 import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import pandas as pd
 from scipy.optimize import minimize_scalar
 from scipy.stats import norm
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = None  # type: ignore
+
+
+class _SimpleSeries:
+    def __init__(self, values: List[Any]):
+        self._values = list(values)
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self) -> int:
+        return len(self._values)
+
+    def __array__(self, dtype=None):
+        return np.asarray(self._values, dtype=dtype)
+
+    @property
+    def iloc(self):
+        return self._values
+
+    def map(self, mapping: Dict[Any, Any]) -> List[Any]:
+        return [mapping[v] for v in self._values]
+
+    def value_counts(self):
+        counts: Dict[Any, int] = {}
+        for v in self._values:
+            counts[v] = counts.get(v, 0) + 1
+        sorted_counts = dict(sorted(counts.items(), key=lambda kv: -kv[1]))
+
+        class _VC:
+            def to_dict(self_inner):
+                return sorted_counts
+
+        return _VC()
+
+
+class _SimpleDataFrame:
+    """Lightweight DataFrame fallback when pandas is not installed in the runtime."""
+
+    def __init__(self, data: Any):
+        if isinstance(data, list):
+            self.rows: List[Dict[str, Any]] = [dict(r) for r in data]
+        elif isinstance(data, dict):
+            keys = list(data.keys())
+            n = len(data[keys[0]]) if keys else 0
+            self.rows = [{k: data[k][i] for k in keys} for i in range(n)]
+        else:
+            self.rows = []
+
+    def __len__(self) -> int:
+        return len(self.rows)
+
+    def __getitem__(self, key: Any):
+        if isinstance(key, str):
+            return _SimpleSeries([r[key] for r in self.rows])
+        if isinstance(key, (list, np.ndarray, _SimpleSeries)):
+            mask = list(key)
+            return _SimpleDataFrame([r for r, m in zip(self.rows, mask) if m])
+        raise KeyError(key)
+
+    def sort_values(self, by: str, ascending: bool = True) -> "_SimpleDataFrame":
+        return _SimpleDataFrame(sorted(self.rows, key=lambda r: r[by], reverse=not ascending))
+
+    def reset_index(self, drop: bool = False) -> "_SimpleDataFrame":
+        return self
+
+    def to_csv(self, path: Any, index: bool = False) -> None:
+        if not self.rows:
+            return
+        fieldnames = list(self.rows[0].keys())
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for r in self.rows:
+                writer.writerow({k: ("" if (isinstance(v, float) and np.isnan(v)) else v) for k, v in r.items()})
+
+
+def _make_df(data: Any) -> Any:
+    return pd.DataFrame(data) if pd is not None else _SimpleDataFrame(data)
 
 OUTPUTS_DIR = Path(__file__).resolve().parents[1] / "outputs"
 
@@ -108,10 +191,14 @@ def evaluate_bootstrap_confidence_intervals(
     n_boot: int = 2000,
     confidence: float = 0.95,
     seed: int = 42,
-) -> Tuple[Dict[str, Any], pd.DataFrame]:
+) -> Tuple[Dict[str, Any], Any]:
     """
     Global metrics (Micro/Macro/Weighted-F1, Top-3 accuracy) and per-class metrics with
     95% percentile-bootstrap CIs, plus a Reliability Tier for each class.
+    When a class has 0 true positives on the test split (TP=0), non-parametric percentile
+    bootstrap degenerates to [0.0, 0.0] (width 0.0); we apply a small-sample Wilson score
+    upper bound on (support + predicted) so rare zero-hit classes reflect true binomial
+    uncertainty rather than artificial zero width.
     Returns (global_results, per_class_dataframe).
     """
     y_true = np.asarray(y_true, dtype=np.int64)
@@ -146,15 +233,24 @@ def evaluate_bootstrap_confidence_intervals(
         support, tp_c, pred_c = int(nt0[0, c]), int(tp0[0, c]), int(np0[0, c])
         recall, rec_lo, rec_hi = wilson_confidence_interval(tp_c, support, confidence)
         precision, prec_lo, prec_hi = wilson_confidence_interval(tp_c, pred_c, confidence)
-        width = float(f1_hi[c] - f1_lo[c])
+        ci_lo = float(f1_lo[c])
+        ci_hi = float(f1_hi[c])
+        if tp_c == 0 and (support + pred_c) > 0:
+            # Avoid degenerate [0.0, 0.0] bootstrap CI at the TP=0 boundary on small classes
+            _, _, wilson_hi = wilson_confidence_interval(0, support + pred_c, confidence)
+            ci_hi = max(ci_hi, float(wilson_hi))
+        elif tp_c == support and tp_c == pred_c and support > 0:
+            # Avoid degenerate [1.0, 1.0] bootstrap CI at the F1=1.0 boundary
+            ci_lo = min(ci_lo, float(rec_lo))
+        width = float(ci_hi - ci_lo)
         rows.append(
             {
                 "class_id": c,
                 "class_name": label_names[c],
                 "n_test": support,
                 "f1": float(f1_0[0, c]),
-                "f1_ci_lower": float(f1_lo[c]),
-                "f1_ci_upper": float(f1_hi[c]),
+                "f1_ci_lower": ci_lo,
+                "f1_ci_upper": ci_hi,
                 "f1_ci_width": width,
                 "recall": recall,
                 "recall_wilson_lower": rec_lo,
@@ -162,10 +258,10 @@ def evaluate_bootstrap_confidence_intervals(
                 "precision": precision,
                 "precision_wilson_lower": prec_lo,
                 "precision_wilson_upper": prec_hi,
-                "tier": assign_reliability_tier(float(f1_lo[c]), width, support),
+                "tier": assign_reliability_tier(ci_lo, width, support),
             }
         )
-    per_class = pd.DataFrame(rows).sort_values("f1_ci_lower", ascending=False).reset_index(drop=True)
+    per_class = _make_df(rows).sort_values("f1_ci_lower", ascending=False).reset_index(drop=True)
     global_results["tier_counts"] = per_class["tier"].value_counts().to_dict()
     return global_results, per_class
 
@@ -237,12 +333,12 @@ def _ece_bootstrap(
     return np.abs(acc_sum - conf_sum).sum(axis=1) / n
 
 
-def _reliability_table(bins, confidence, correct, n_bins: int) -> pd.DataFrame:
+def _reliability_table(bins, confidence, correct, n_bins: int) -> Any:
     counts = np.bincount(bins, minlength=n_bins)
     conf_sum = np.bincount(bins, weights=confidence, minlength=n_bins)
     acc_sum = np.bincount(bins, weights=correct, minlength=n_bins)
     safe = np.maximum(counts, 1)
-    return pd.DataFrame(
+    return _make_df(
         {
             "bin_lower": np.arange(n_bins) / n_bins,
             "bin_upper": (np.arange(n_bins) + 1) / n_bins,
@@ -309,8 +405,8 @@ def evaluate_calibration(
 TIER_COLORS = {TIER_AUTO: "#2e8b57", TIER_ASSISTED: "#e69f00", TIER_BLOCKED: "#c0392b"}
 
 
-def plot_forest_per_class(per_class: pd.DataFrame, path: str, title: str = "") -> None:
-    """Forest plot of per-class F1 with 95% bootstrap CIs, coloured by reliability tier."""
+def plot_forest_per_class(per_class: Any, path: str, title: str = "") -> None:
+    """Forest plot of per-class F1 with 95% bootstrap/Wilson CIs, coloured by reliability tier."""
     import matplotlib
 
     matplotlib.use("Agg")
@@ -322,15 +418,15 @@ def plot_forest_per_class(per_class: pd.DataFrame, path: str, title: str = "") -
     colors = df["tier"].map(TIER_COLORS)
 
     fig, ax = plt.subplots(figsize=(9, max(6, 0.22 * len(df))))
-    ax.hlines(y, df["f1_ci_lower"], df["f1_ci_upper"], colors=colors, linewidth=2)
-    ax.scatter(df["f1"], y, c=colors, s=18, zorder=3)
+    ax.hlines(y, np.asarray(df["f1_ci_lower"]), np.asarray(df["f1_ci_upper"]), colors=colors, linewidth=2)
+    ax.scatter(np.asarray(df["f1"]), y, c=colors, s=18, zorder=3)
     ax.axvline(0.50, color="grey", linestyle="--", linewidth=1)
     ax.axvline(0.80, color="grey", linestyle=":", linewidth=1)
     ax.set_yticks(y)
     ax.set_yticklabels([f"{n} (n={k})" for n, k in zip(df["class_name"], df["n_test"])], fontsize=6)
     ax.set_xlim(0, 1.02)
     ax.set_ylim(-1, len(df))
-    ax.set_xlabel("F1 (95% bootstrap CI)")
+    ax.set_xlabel("F1 (95% bootstrap / Wilson CI)")
     ax.set_title(title or "Per-class F1 with 95% confidence intervals")
     ax.legend(
         handles=[Line2D([0], [0], color=c, lw=2, label=t) for t, c in TIER_COLORS.items()],
@@ -355,11 +451,15 @@ def plot_reliability_diagram(
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.6), sharey=True)
     for ax, tag, label in zip(axes, ("before", "after"), ("Before scaling (T=1)", "After scaling")):
         table = calibration[f"reliability_bins_{tag}"]
-        table = table[table["count"] > 0]
-        width = float(table["bin_upper"].iloc[0] - table["bin_lower"].iloc[0])
-        centers = (table["bin_lower"] + table["bin_upper"]) / 2
-        colors = np.where(table["count"] >= min_count, "#2b6cb0", "#b0b0b0")
-        ax.bar(centers, table["accuracy"], width=width * 0.95, color=colors, edgecolor="white")
+        table = table[np.asarray(table["count"]) > 0]
+        bin_lo = np.asarray(table["bin_lower"], dtype=float)
+        bin_hi = np.asarray(table["bin_upper"], dtype=float)
+        counts = np.asarray(table["count"], dtype=int)
+        acc = np.asarray(table["accuracy"], dtype=float)
+        width = float(bin_hi[0] - bin_lo[0])
+        centers = (bin_lo + bin_hi) / 2
+        colors = np.where(counts >= min_count, "#2b6cb0", "#b0b0b0")
+        ax.bar(centers, acc, width=width * 0.95, color=colors, edgecolor="white")
         ax.plot([0, 1], [0, 1], color="black", linestyle="--", linewidth=1)
         ece = calibration[f"ece_{tag}"]["estimate"]
         temp = calibration["temperature"] if tag == "after" else 1.0

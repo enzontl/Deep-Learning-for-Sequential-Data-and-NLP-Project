@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "enzontl", email = "enatali@albertschool.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.10"
 dependencies = [
     "accelerate>=0.25.0",
     "datasets>=2.16.0",
@@ -24,9 +24,5 @@ dependencies = [
     "transformers>=4.35.0",
 ]
 
-[project.scripts]
-deep-learning-for-sequential-data-and-nlp-project = "deep_learning_for_sequential_data_and_nlp_project:main"
-
-[build-system]
-requires = ["uv_build>=0.12.24,<0.13.0"]
-build-backend = "uv_build"
+[tool.uv]
+package = false

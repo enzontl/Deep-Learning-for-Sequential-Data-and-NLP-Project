@@ -1,19 +1,16 @@
 """
-Personne 3 - Requetes d'avocat avec contrainte (ex. "clauses de resiliation avec preavis de 30 jours")
-=====================================================================================================
-Question : la recherche par SENS seul (dense) se trompe-t-elle sur les chiffres ("30 jours" vs "60 jours"),
-et le mode hybride (SENS + MOTS EXACTS BM25 + filtre de categorie) corrige-t-il ca ?
+Person 3 — Lawyer Constraint Queries Retrieval Benchmark
+========================================================
+Evaluates whether pure dense semantic search (`Sentence-BERT`) fails on exact numerical or
+jurisdictional constraints (e.g., "30-day notice" vs. "60-day notice", "State of Delaware"
+vs. "State of New York"), and how lexical matching (`BM25`) and Reciprocal Rank Fusion
+(`Hybrid` + Category Filter) recover precision.
 
-Une clause de la banque est un BON resultat pour une requete si :
-    sa categorie == la categorie visee   ET   son texte contient la contrainte (regle automatique ci-dessous).
-Les 20 requetes et leurs regles sont ECRITES ICI, avant d'avoir vu le moindre resultat, et ne doivent plus
-etre modifiees apres : on ne les ajuste pas pour obtenir de meilleurs chiffres.
+A clause in the 60,000-clause training bank is a gold hit for a query iff:
+    clause_category == target_category   AND   regex_constraint.search(clause_text)
 
-La banque = les 60 000 clauses d'entrainement. Les requetes sont ecrites a la main : il n'y a donc pas de
-jeu de test a proteger, on lance UNE fois et on garde le resultat.
-
-Lancer (depuis la racine du projet) :
-    python -m src.retrieval_lawyer_eval
+Run from the repository root:
+    uv run python -m src.retrieval_lawyer_eval
 """
 
 import json
@@ -63,18 +60,19 @@ QUERIES = [
     ("Governing Laws", "This agreement is governed by the laws of the State of Texas", r"state\s+of\s+texas"),
 ]
 
-# modes testes : (nom affiche, mode de recherche, filtre de categorie ?)
+# Configurations evaluated: (display_name, retrieval_mode, use_category_filter)
 CONFIGS = [
     ("dense", "dense", False),
     ("bm25", "bm25", False),
     ("hybrid", "hybrid", False),
     ("dense+filtre", "dense", True),
+    ("bm25+filtre", "bm25", True),
     ("hybrid+filtre", "hybrid", True),
 ]
 
 
 def gold_masks(bank_texts: List[str], bank_labels: np.ndarray, label_names: List[str]) -> np.ndarray:
-    """Pour chaque requete : vecteur booleen 'cette clause de la banque est un bon resultat'."""
+    """Boolean mask (n_queries, n_bank) indicating whether each bank clause satisfies category + constraint."""
     lowered = [t.lower() for t in bank_texts]
     masks = np.zeros((len(QUERIES), len(bank_texts)), dtype=bool)
     for q, (category, _, rule) in enumerate(QUERIES):
@@ -92,13 +90,13 @@ def run(retriever: ClauseBankRetriever, label_names: List[str], k: int = TOP_K) 
 
     per_query = {}
     for name, mode, use_filter in CONFIGS:
-        if use_filter:  # un filtre different par requete -> une recherche par requete
+        if use_filter:
             retrieved = np.vstack([retriever.search_batch([t], top_k=k, mode=mode, label_filter=[c]) for t, c in zip(texts, cats)])
         else:
             retrieved = retriever.search_batch(texts, top_k=k, mode=mode)
         valid = retrieved >= 0
-        hits = gold[np.arange(len(QUERIES))[:, None], np.where(valid, retrieved, 0)] & valid  # bonne cat. ET contrainte
-        cat_hits = (bank_labels[np.where(valid, retrieved, 0)] == np.array(cats)[:, None]) & valid  # bonne cat. seulement
+        hits = gold[np.arange(len(QUERIES))[:, None], np.where(valid, retrieved, 0)] & valid
+        cat_hits = (bank_labels[np.where(valid, retrieved, 0)] == np.array(cats)[:, None]) & valid
         any_hit = hits.any(axis=1)
         per_query[name] = {
             "precision": hits.sum(axis=1) / k,
@@ -116,7 +114,19 @@ def run(retriever: ClauseBankRetriever, label_names: List[str], k: int = TOP_K) 
     }
     for name in per_query:
         out["modes"][name] = {m: bootstrap_mean_ci(v, N_BOOT, seed=SEED) for m, v in per_query[name].items()}
-    for a, b in (("hybrid", "dense"), ("hybrid+filtre", "dense"), ("hybrid+filtre", "hybrid"), ("dense+filtre", "dense")):
+    paired_pairs = [
+        ("hybrid", "dense"),
+        ("bm25", "dense"),
+        ("hybrid+filtre", "dense"),
+        ("hybrid+filtre", "hybrid"),
+        ("hybrid+filtre", "bm25"),
+        ("dense+filtre", "dense"),
+        ("bm25+filtre", "bm25"),
+        ("hybrid+filtre", "bm25+filtre"),
+    ]
+    for a, b in paired_pairs:
+        if a not in per_query or b not in per_query:
+            continue
         out["paired_differences"][f"{a}_minus_{b}"] = {}
         for m in ("precision", "mrr"):
             ci = bootstrap_mean_ci(per_query[a][m] - per_query[b][m], N_BOOT, seed=SEED)
@@ -126,19 +136,19 @@ def run(retriever: ClauseBankRetriever, label_names: List[str], k: int = TOP_K) 
 
 
 def format_report(res: Dict) -> str:
-    lines = ["\n--- Nombre de bonnes clauses existant dans la banque, par requete (si < 5 : precision max < 1) ---"]
+    lines = ["\n--- Matching gold clauses in the 60k bank per query (if < 5: max Precision@5 < 1.0) ---"]
     for q, c in res["gold_counts"].items():
         warn = "/!\\ " if c < 5 else ""
         lines.append(f"{c:>5}  {warn}{q}")
-    lines.append(f"\n--- Resultats sur {res['n_queries']} requetes (IC 95 %, bootstrap sur les requetes) ---")
-    lines.append(f"{'mode':<14} {'Precision@5':<24} {'MRR@5':<24} {'HitRate@5':<24} {'(cat. seule)':<10}")
+    lines.append(f"\n--- Results across {res['n_queries']} constraint queries (95% Bootstrap CI over queries) ---")
+    lines.append(f"{'mode':<14} {'Precision@5':<24} {'MRR@5':<24} {'HitRate@5':<24} {'(cat. only)':<10}")
     for name, r in res["modes"].items():
         cells = [f"{r[m]['estimate']:.3f} [{r[m]['ci_lower']:.3f}; {r[m]['ci_upper']:.3f}]" for m in ("precision", "mrr", "hit_rate")]
         lines.append(f"{name:<14} " + " ".join(f"{c:<24}" for c in cells) + f" {r['category_only_precision']['estimate']:.3f}")
-    lines.append("\n--- Differences appariees : * = significatif ---")
+    lines.append("\n--- Paired bootstrap differences (* = 95% CI excludes 0) ---")
     for name, r in res["paired_differences"].items():
         parts = [f"{m}: {r[m]['estimate']:+.3f} [{r[m]['ci_lower']:+.3f}; {r[m]['ci_upper']:+.3f}]" + ("*" if r[m]["significant"] else "") for m in ("precision", "mrr")]
-        lines.append(f"{name:<24} " + "   ".join(parts))
+        lines.append(f"{name:<26} " + "   ".join(parts))
     return "\n".join(lines)
 
 

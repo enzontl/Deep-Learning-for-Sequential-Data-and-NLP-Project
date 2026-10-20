@@ -88,3 +88,23 @@ def compare_tokenizers(sample_texts: List[str]) -> Dict[str, Any]:
         }
 
     return results
+
+
+if __name__ == "__main__":
+    import json
+    from pathlib import Path
+
+    outputs_dir = Path(__file__).resolve().parents[1] / "outputs"
+    outputs_dir.mkdir(parents=True, exist_ok=True)
+
+    ds, names = load_ledgar()
+    dist_df = get_class_distribution_table(ds, names)
+    dist_df.to_csv(outputs_dir / "class_distribution.csv", index=False)
+
+    rng = np.random.default_rng(42)
+    sample_idx = rng.choice(len(ds["train"]), size=min(2000, len(ds["train"])), replace=False)
+    sample_clauses = [ds["train"]["text"][int(i)] for i in sample_idx]
+    tok_stats = compare_tokenizers(sample_clauses)
+    with open(outputs_dir / "tokenizer_comparison.json", "w", encoding="utf-8") as f:
+        json.dump(tok_stats, f, indent=2)
+    print(f"Saved class_distribution.csv and tokenizer_comparison.json to {outputs_dir}")

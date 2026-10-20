@@ -4,14 +4,18 @@ Person 1 — Baseline & GPU Transformer Training Pipeline
 Implements:
 1. Fast TF-IDF + Logistic Regression baseline (to anchor neural model evaluation).
 2. PyTorch / HuggingFace fine-tuning loop for BERT / Legal-BERT on GPU.
-3. Export of validation and test logits (`outputs/val_logits.npy`, `outputs/test_logits.npy`)
-   so Person 2 (Statistical Evaluation & CIs) and Person 3 (Bias Audit) can run their analyses
-   without needing to re-train the model on GPU.
+3. Export of validation and test logits (`outputs/legal_bert_{val,test}_logits.npy`,
+   `outputs/tfidf_{val,test}_logits.npy`) so Person 2 (Statistical Evaluation & CIs)
+   and Person 3 (Bias Audit) can run their analyses without needing to re-train on GPU.
+
+Run from the repository root:
+    uv run python -m src.train
 """
 
+import argparse
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -119,6 +123,8 @@ def fine_tune_transformer(
     lr: float = 3e-5,
     max_length: int = 256,
     seed: int = 42,
+    use_class_weights: bool = False,
+    run_tfidf: bool = True,
 ) -> Dict[str, Any]:
     """
     Fine-tune BERT / Legal-BERT on LEDGAR using GPU (CUDA/MPS) and save validation/test logits
@@ -137,6 +143,19 @@ def fine_tune_transformer(
     val_labels = np.array(dataset["validation"]["label"], dtype=np.int64)
     test_texts = list(dataset["test"]["text"])
     test_labels = np.array(dataset["test"]["label"], dtype=np.int64)
+
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    np.save(OUTPUTS_DIR / "val_labels.npy", val_labels)
+    np.save(OUTPUTS_DIR / "test_labels.npy", test_labels)
+    with open(OUTPUTS_DIR / "label_names.json", "w", encoding="utf-8") as f:
+        json.dump(label_names, f, indent=2)
+
+    if run_tfidf:
+        tfidf_val_logits, tfidf_test_logits = train_tfidf_baseline(
+            train_texts, train_labels, val_texts, test_texts
+        )
+        np.save(OUTPUTS_DIR / "tfidf_val_logits.npy", tfidf_val_logits)
+        np.save(OUTPUTS_DIR / "tfidf_test_logits.npy", tfidf_test_logits)
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(
@@ -168,35 +187,59 @@ def fine_tune_transformer(
     scheduler = get_cosine_schedule_with_warmup(
         optimizer, num_warmup_steps=int(0.1 * total_steps), num_training_steps=total_steps
     )
-    criterion = nn.CrossEntropyLoss()
-    use_amp = device.type == "cuda"
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    if use_class_weights:
+        counts = np.bincount(train_labels, minlength=num_classes).astype(np.float32)
+        weights = 1.0 / np.sqrt(np.maximum(counts, 1.0))
+        weights = weights / weights.mean()
+        criterion = nn.CrossEntropyLoss(weight=torch.tensor(weights, device=device))
+    else:
+        criterion = nn.CrossEntropyLoss()
 
-    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    use_amp = device.type == "cuda"
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
+
     best_val_acc = -1.0
-    best_val_logits = None
+    best_val_logits: Optional[np.ndarray] = None
+    history: List[Dict[str, Any]] = []
 
     for epoch in range(1, epochs + 1):
         model.train()
+        running_loss = 0.0
+        n_seen = 0
         for batch in tqdm(train_loader, desc=f"Epoch {epoch}/{epochs}"):
             optimizer.zero_grad(set_to_none=True)
             labels = batch.pop("labels").to(device)
             batch = {k: v.to(device) for k, v in batch.items()}
 
-            with torch.cuda.amp.autocast(enabled=use_amp):
+            with torch.amp.autocast("cuda", enabled=use_amp):
                 outputs = model(**batch)
                 loss = criterion(outputs.logits, labels)
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            scale_before = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
-            scheduler.step()
+            if scaler.get_scale() >= scale_before:
+                scheduler.step()
 
+            bs = labels.size(0)
+            running_loss += float(loss.item()) * bs
+            n_seen += bs
+
+        train_loss = running_loss / max(1, n_seen)
         val_logits, val_y, val_loss = evaluate_logits(model, val_loader, device)
         val_acc = float(np.mean(np.argmax(val_logits, axis=1) == val_y))
-        print(f"Epoch {epoch}: val_loss={val_loss:.4f} | val_accuracy={val_acc:.4f}")
+        print(f"Epoch {epoch}: train_loss={train_loss:.4f} | val_loss={val_loss:.4f} | val_accuracy={val_acc:.4f}")
+        history.append(
+            {
+                "epoch": epoch,
+                "train_loss": round(train_loss, 4),
+                "val_loss": round(val_loss, 4),
+                "val_accuracy": round(val_acc, 4),
+            }
+        )
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -206,17 +249,43 @@ def fine_tune_transformer(
 
     best_model = AutoModelForSequenceClassification.from_pretrained(OUTPUTS_DIR / "best_model").to(device)
     test_logits, _, test_loss = evaluate_logits(best_model, test_loader, device)
+    test_acc = float(np.mean(np.argmax(test_logits, axis=1) == test_labels))
 
-    # Save logits and ground-truth labels for Person 2 & Person 3
-    np.save(OUTPUTS_DIR / "val_logits.npy", best_val_logits)
-    np.save(OUTPUTS_DIR / "test_logits.npy", test_logits)
-    np.save(OUTPUTS_DIR / "val_labels.npy", val_labels)
-    np.save(OUTPUTS_DIR / "test_labels.npy", test_labels)
-    with open(OUTPUTS_DIR / "label_names.json", "w", encoding="utf-8") as f:
-        json.dump(label_names, f, indent=2)
+    # Save logits using the canonical filenames expected by evaluation.py and bias_audit.py
+    np.save(OUTPUTS_DIR / "legal_bert_val_logits.npy", best_val_logits)
+    np.save(OUTPUTS_DIR / "legal_bert_test_logits.npy", test_logits)
 
-    return {
+    summary = {
         "model_name": model_name,
+        "epochs": epochs,
+        "batch_size": batch_size,
+        "lr": lr,
+        "max_length": max_length,
+        "use_class_weights": use_class_weights,
         "best_val_accuracy": round(best_val_acc, 4),
+        "test_accuracy": round(test_acc, 4),
         "test_loss": round(test_loss, 4),
+        "epochs_log": history,
     }
+    with open(OUTPUTS_DIR / "training_history.json", "w", encoding="utf-8") as f:
+        json.dump(summary, f, indent=2)
+    return summary
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train TF-IDF baseline and Legal-BERT classifier on LEDGAR")
+    parser.add_argument("--model-name", default="nlpaueb/legal-bert-base-uncased")
+    parser.add_argument("--epochs", type=int, default=3)
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--lr", type=float, default=3e-5)
+    parser.add_argument("--max-length", type=int, default=256)
+    parser.add_argument("--class-weights", action="store_true", help="Use inverse-sqrt class weights in CrossEntropyLoss")
+    args = parser.parse_args()
+    fine_tune_transformer(
+        model_name=args.model_name,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        max_length=args.max_length,
+        use_class_weights=args.class_weights,
+    )

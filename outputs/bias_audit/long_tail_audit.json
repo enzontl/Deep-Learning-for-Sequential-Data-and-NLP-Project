@@ -7,10 +7,10 @@
         "mean_train_count": 1578.0,
         "mean_test_count": 260.375,
         "mean_f1": 0.9199886455865458,
-        "median_f1": 0.9329914086801955,
+        "median_f1": 0.9329914086801956,
         "min_f1": 0.8154506437768241,
-        "mean_ci_width": 0.05110711002247391,
-        "max_ci_width": 0.1065039996165683,
+        "mean_ci_width": 0.05110711002247395,
+        "max_ci_width": 0.10650399961656831,
         "n_zero_f1": 0,
         "zero_f1_classes": [],
         "tier_1_auto": 15,
@@ -25,7 +25,7 @@
         "mean_f1": 0.7630041528351759,
         "median_f1": 0.847457627118644,
         "min_f1": 0.0,
-        "mean_ci_width": 0.1405766932637651,
+        "mean_ci_width": 0.1436042055255934,
         "max_ci_width": 0.4282297297297287,
         "n_zero_f1": 2,
         "zero_f1_classes": [
@@ -44,8 +44,8 @@
         "mean_f1": 0.3462232017631737,
         "median_f1": 0.3225806451612903,
         "min_f1": 0.0,
-        "mean_ci_width": 0.20958146895121677,
-        "max_ci_width": 0.5333333333333333,
+        "mean_ci_width": 0.4355804794842338,
+        "max_ci_width": 0.6576197724933469,
         "n_zero_f1": 3,
         "zero_f1_classes": [
           "Qualifications",
@@ -64,10 +64,10 @@
         "mean_train_count": 1578.0,
         "mean_test_count": 260.375,
         "mean_f1": 0.9084801388221485,
-        "median_f1": 0.9323724025636964,
+        "median_f1": 0.9323724025636962,
         "min_f1": 0.7901234567901234,
-        "mean_ci_width": 0.0551226598933026,
-        "max_ci_width": 0.113356434207149,
+        "mean_ci_width": 0.05512265989330265,
+        "max_ci_width": 0.11335643420714903,
         "n_zero_f1": 0,
         "zero_f1_classes": [],
         "tier_1_auto": 13,
@@ -81,9 +81,9 @@
         "mean_test_count": 74.71428571428571,
         "mean_f1": 0.7929805743137718,
         "median_f1": 0.8057142857142857,
-        "min_f1": 0.0727272727272727,
-        "mean_ci_width": 0.14929050868651186,
-        "max_ci_width": 0.4408602150537634,
+        "min_f1": 0.07272727272727272,
+        "mean_ci_width": 0.14929050868651192,
+        "max_ci_width": 0.44086021505376344,
         "n_zero_f1": 0,
         "zero_f1_classes": [],
         "tier_1_auto": 30,
@@ -98,7 +98,7 @@
         "mean_f1": 0.5842792543373939,
         "median_f1": 0.5,
         "min_f1": 0.0,
-        "mean_ci_width": 0.46290698097420785,
+        "mean_ci_width": 0.5328913861820075,
         "max_ci_width": 1.0,
         "n_zero_f1": 1,
         "zero_f1_classes": [
@@ -115,11 +115,11 @@
         "n_classes": 16,
         "mean_train_count": 1578.0,
         "mean_test_count": 260.375,
-        "mean_f1": 0.9218164416840626,
-        "median_f1": 0.9275362318840579,
+        "mean_f1": 0.9218164416840627,
+        "median_f1": 0.927536231884058,
         "min_f1": 0.8240343347639485,
-        "mean_ci_width": 0.05075589941543565,
-        "max_ci_width": 0.1043818723364381,
+        "mean_ci_width": 0.0507558994154357,
+        "max_ci_width": 0.10438187233643814,
         "n_zero_f1": 0,
         "zero_f1_classes": [],
         "tier_1_auto": 15,
@@ -134,7 +134,7 @@
         "mean_f1": 0.8061801339914115,
         "median_f1": 0.8631578947368421,
         "min_f1": 0.0,
-        "mean_ci_width": 0.13918927496570394,
+        "mean_ci_width": 0.14148896653162163,
         "max_ci_width": 0.4633431085043988,
         "n_zero_f1": 1,
         "zero_f1_classes": [
@@ -149,10 +149,10 @@
         "n_classes": 7,
         "mean_train_count": 83.0,
         "mean_test_count": 11.571428571428571,
-        "mean_f1": 0.5426766320563312,
+        "mean_f1": 0.5426766320563313,
         "median_f1": 0.5263157894736842,
         "min_f1": 0.0,
-        "mean_ci_width": 0.45211885410094077,
+        "mean_ci_width": 0.5221032593087404,
         "max_ci_width": 1.0,
         "n_zero_f1": 1,
         "zero_f1_classes": [
@@ -173,8 +173,8 @@
       "Legal-BERT": {
         "f1": 0.0,
         "ci_lower": 0.0,
-        "ci_upper": 0.0,
-        "ci_width": 0.0,
+        "ci_upper": 0.6576197724933469,
+        "ci_width": 0.6576197724933469,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
@@ -200,22 +200,22 @@
       "Legal-BERT": {
         "f1": 0.0,
         "ci_lower": 0.0,
-        "ci_upper": 0.0,
-        "ci_width": 0.0,
+        "ci_upper": 0.4898908364545973,
+        "ci_width": 0.4898908364545973,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
         "f1": 0.0,
         "ci_lower": 0.0,
-        "ci_upper": 0.0,
-        "ci_width": 0.0,
+        "ci_upper": 0.4898908364545973,
+        "ci_width": 0.4898908364545973,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "Ensemble": {
         "f1": 0.0,
         "ci_lower": 0.0,
-        "ci_upper": 0.0,
-        "ci_width": 0.0,
+        "ci_upper": 0.4898908364545973,
+        "ci_width": 0.4898908364545973,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       }
     },
@@ -227,8 +227,8 @@
       "Legal-BERT": {
         "f1": 0.0,
         "ci_lower": 0.0,
-        "ci_upper": 0.0,
-        "ci_width": 0.0,
+        "ci_upper": 0.43448246478317476,
+        "ci_width": 0.43448246478317476,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
@@ -255,21 +255,21 @@
         "f1": 0.9565217391304348,
         "ci_lower": 0.8823529411764706,
         "ci_upper": 1.0,
-        "ci_width": 0.1176470588235294,
+        "ci_width": 0.11764705882352944,
         "tier": "Tier 1 (Green - Auto-Tag Ready)"
       },
       "TF-IDF": {
-        "f1": 0.9302325581395348,
+        "f1": 0.9302325581395349,
         "ci_lower": 0.8333333333333334,
         "ci_upper": 1.0,
-        "ci_width": 0.1666666666666666,
+        "ci_width": 0.16666666666666663,
         "tier": "Tier 1 (Green - Auto-Tag Ready)"
       },
       "Ensemble": {
-        "f1": 0.9777777777777776,
+        "f1": 0.9777777777777777,
         "ci_lower": 0.918918918918919,
         "ci_upper": 1.0,
-        "ci_width": 0.081081081081081,
+        "ci_width": 0.08108108108108103,
         "tier": "Tier 1 (Green - Auto-Tag Ready)"
       }
     },
@@ -280,9 +280,9 @@
       "n_test": 14,
       "Legal-BERT": {
         "f1": 0.7096774193548387,
-        "ci_lower": 0.4848484848484848,
+        "ci_lower": 0.48484848484848486,
         "ci_upper": 0.8666666666666667,
-        "ci_width": 0.3818181818181818,
+        "ci_width": 0.38181818181818183,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
@@ -306,15 +306,15 @@
       "n_train": 125,
       "n_test": 13,
       "Legal-BERT": {
-        "f1": 0.4347826086956521,
-        "ci_lower": 0.1333333333333333,
+        "f1": 0.43478260869565216,
+        "ci_lower": 0.13333333333333333,
         "ci_upper": 0.6666666666666666,
         "ci_width": 0.5333333333333333,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
         "f1": 0.5,
-        "ci_lower": 0.1818181818181818,
+        "ci_lower": 0.18181818181818182,
         "ci_upper": 0.75,
         "ci_width": 0.5681818181818181,
         "tier": "Tier 3 (Red - Do Not Deploy)"
@@ -334,21 +334,21 @@
       "n_test": 20,
       "Legal-BERT": {
         "f1": 0.3225806451612903,
-        "ci_lower": 0.0952380952380952,
+        "ci_lower": 0.09523809523809523,
         "ci_upper": 0.5295098039215681,
-        "ci_width": 0.4342717086834728,
+        "ci_width": 0.43427170868347287,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
         "f1": 0.4375,
-        "ci_lower": 0.2142857142857142,
+        "ci_lower": 0.21428571428571427,
         "ci_upper": 0.6470588235294118,
         "ci_width": 0.4327731092436975,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "Ensemble": {
         "f1": 0.4375,
-        "ci_lower": 0.2104355716878404,
+        "ci_lower": 0.21043557168784044,
         "ci_upper": 0.6429147465437786,
         "ci_width": 0.4324791748559381,
         "tier": "Tier 3 (Red - Do Not Deploy)"
@@ -370,12 +370,12 @@
         "f1": 0.5714285714285714,
         "ci_lower": 0.3333333333333333,
         "ci_upper": 0.7741935483870968,
-        "ci_width": 0.4408602150537634,
+        "ci_width": 0.44086021505376344,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "Ensemble": {
-        "f1": 0.4285714285714285,
-        "ci_lower": 0.1818181818181818,
+        "f1": 0.42857142857142855,
+        "ci_lower": 0.18181818181818182,
         "ci_upper": 0.6451612903225806,
         "ci_width": 0.4633431085043988,
         "tier": "Tier 3 (Red - Do Not Deploy)"
@@ -388,9 +388,9 @@
       "n_test": 33,
       "Legal-BERT": {
         "f1": 0.5142857142857142,
-        "ci_lower": 0.3571428571428571,
+        "ci_lower": 0.35714285714285715,
         "ci_upper": 0.6506638800098349,
-        "ci_width": 0.2935210228669777,
+        "ci_width": 0.29352102286697773,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       },
       "TF-IDF": {
@@ -414,7 +414,7 @@
       "n_train": 178,
       "n_test": 26,
       "Legal-BERT": {
-        "f1": 0.4285714285714285,
+        "f1": 0.42857142857142855,
         "ci_lower": 0.2222222222222222,
         "ci_upper": 0.6071428571428571,
         "ci_width": 0.3849206349206349,
@@ -429,9 +429,9 @@
       },
       "Ensemble": {
         "f1": 0.6222222222222222,
-        "ci_lower": 0.4285714285714285,
+        "ci_lower": 0.42857142857142855,
         "ci_upper": 0.7727272727272727,
-        "ci_width": 0.3441558441558441,
+        "ci_width": 0.34415584415584416,
         "tier": "Tier 3 (Red - Do Not Deploy)"
       }
     }

@@ -169,7 +169,6 @@ def run_taxonomy_overlap_audit(
             continue
         a, b = label_names.index(name_a), label_names.index(name_b)
         rank = next((r["rank"] for r in pairs if {r["class_a"], r["class_b"]} == {name_a, name_b}), None)
-        total = next((r["total"] for r in pairs if {r["class_a"], r["class_b"]} == {name_a, name_b}), 0)
         has_both = np.array([(kw_a in t) and (kw_b in t) for t in lowered])
         confused = ((y_true == a) & (y_pred == b)) | ((y_true == b) & (y_pred == a))
         ok = ((y_true == a) & (y_pred == a)) | ((y_true == b) & (y_pred == b))
@@ -188,23 +187,36 @@ def run_taxonomy_overlap_audit(
 
 
 def format_taxonomy_report(model: str, res: Dict[str, Any]) -> str:
-    lines = [f"\n=== {model} : {res['n_errors']} erreurs sur {res['n_test']} clauses de test ==="]
-    lines.append(f"Les {len(res['top_pairs'])} paires les plus confondues = {100 * res['top_pairs_share_of_errors']:.1f} % des erreurs")
-    lines.append(f"\n{'rang':<5} {'paire':<58} {'A->B':>5} {'B->A':>5} {'total':>6}")
+    lines = [f"\n=== {model} : {res['n_errors']} errors on {res['n_test']} test clauses ==="]
+    lines.append(f"Top {len(res['top_pairs'])} confused pairs = {100 * res['top_pairs_share_of_errors']:.1f}% of all errors")
+    lines.append(f"\n{'rank':<5} {'pair':<58} {'A->B':>5} {'B->A':>5} {'total':>6}")
     for r in res["top_pairs"]:
         lines.append(f"{r['rank']:<5} {(r['class_a'] + ' / ' + r['class_b']):<58} {r['a_as_b']:>5} {r['b_as_a']:>5} {r['total']:>6}")
-    lines.append("\n--- Paires citees par le README ---")
+    lines.append("\n--- Compound Boilerplate Hypothesis (README pairs) ---")
     for c in res["readme_pairs"]:
-        lines.append(f"{c['pair']}: rang {c['rank_among_pairs']}, {c['n_confused']} confusions")
+        lines.append(f"{c['pair']}: rank {c['rank_among_pairs']}, {c['n_confused']} confusions")
         for label in ("confused", "correct"):
             d = c[f"share_with_both_keywords_{label}"]
-            txt = "clauses CONFONDUES" if label == "confused" else "clauses BIEN classees"
-            lines.append(f"   contiennent les 2 mots-cles {c['keywords']} parmi les {txt} : "
+            txt = "CONFUSED clauses" if label == "confused" else "CORRECTLY classified clauses"
+            lines.append(f"   contain both keywords {c['keywords']} among {txt}: "
                          f"{d['k']}/{d['n']} = {d['p']:.3f} [{d['ci_lower']:.3f}; {d['ci_upper']:.3f}]")
-    lines.append("\n--- Exemples d'erreurs (3 premieres paires) ---")
+    lines.append("\n--- Error examples (top 3 pairs) ---")
     for e in res["examples"]:
-        lines.append(f"[{e['pair']}] vrai={e['true']} | predit={e['predicted']}\n    {e['text_start']}")
+        lines.append(f"[{e['pair']}] true={e['true']} | predicted={e['predicted']}\n    {e['text_start']}")
     return "\n".join(lines)
+
+
+def _load_model_test_logits(outputs_dir: Path = OUTPUTS_DIR) -> Dict[str, np.ndarray]:
+    """Load test logits for Legal-BERT, TF-IDF, and the Calibrated Ensemble."""
+    from src.evaluation import build_ensemble
+
+    lb_val = np.load(outputs_dir / "legal_bert_val_logits.npy")
+    lb_test = np.load(outputs_dir / "legal_bert_test_logits.npy")
+    tf_val = np.load(outputs_dir / "tfidf_val_logits.npy")
+    tf_test = np.load(outputs_dir / "tfidf_test_logits.npy")
+    y_val = np.load(outputs_dir / "val_labels.npy")
+    _, ens_test, _ = build_ensemble(lb_val, tf_val, y_val, lb_test, tf_test)
+    return {"Legal-BERT": lb_test, "TF-IDF": tf_test, "Ensemble": ens_test}
 
 
 def _main_taxonomy() -> None:
@@ -215,13 +227,12 @@ def _main_taxonomy() -> None:
     test_labels = np.array(dataset["test"]["label"])
     saved_labels = np.load(OUTPUTS_DIR / "test_labels.npy")
     if len(saved_labels) != len(test_labels) or not np.array_equal(saved_labels, test_labels):
-        raise SystemExit("ERREUR : l'ordre du test ne correspond pas a outputs/test_labels.npy -> on arrete.")
+        raise SystemExit("ERROR: test split order does not match outputs/test_labels.npy.")
     with open(OUTPUTS_DIR / "label_names.json", encoding="utf-8") as f:
         label_names = json.load(f)
 
     results = {}
-    for name, file in (("Legal-BERT", "legal_bert_test_logits.npy"), ("TF-IDF", "tfidf_test_logits.npy")):
-        logits = np.load(OUTPUTS_DIR / file)
+    for name, logits in _load_model_test_logits().items():
         results[name] = run_taxonomy_overlap_audit(test_texts, test_labels, logits, label_names)
         print(format_taxonomy_report(name, results[name]))
 
@@ -234,7 +245,7 @@ def _main_taxonomy() -> None:
         for model, res in results.items():
             for r in res["top_pairs"]:
                 writer.writerow([model, r["rank"], r["class_a"], r["class_b"], r["a_as_b"], r["b_as_a"], r["total"], r["share_of_all_errors"]])
-    print(f"\nFichiers ecrits dans {AUDIT_DIR}/taxonomy_audit.json et taxonomy_top_pairs.csv")
+    print(f"\nSaved {AUDIT_DIR}/taxonomy_audit.json and taxonomy_top_pairs.csv")
 
 
 # ----------------------------------------------------------------------------------------------
@@ -264,7 +275,13 @@ _SEC_ABBR_RE = re.compile(r"\bSEC\b")  # sensible a la casse : seulement "SEC" e
 _ERISA_LONG_RE = re.compile(r"\bEmployee Retirement Income Security Act(?: of 1974)?", re.IGNORECASE)
 _ERISA_ABBR_RE = re.compile(r"\bERISA\b")
 
-_US_ROTATION = {"delaware": "Ohio", "new york": "California", "california": "Texas", "texas": "Florida"}
+_US_ROTATION = {
+    "delaware": "Ohio",
+    "new york": "California",
+    "california": "Texas",
+    "texas": "Florida",
+    "ohio": "Delaware",
+}
 
 
 def _match_case(source: str, replacement: str) -> str:
@@ -343,7 +360,15 @@ def _bootstrap_mean_ci(values, n_boot: int = 2000, confidence: float = 0.95, see
 
 
 def _evaluate_variant(
-    transform, test_texts, y_true, predict_logits, base_logits, label_names, n_boot: int = 2000, seed: int = 42
+    transform,
+    test_texts,
+    y_true,
+    predict_logits,
+    base_logits,
+    label_names,
+    temperature: float = 1.0,
+    n_boot: int = 2000,
+    seed: int = 42,
 ) -> Dict[str, Any]:
     from src.evaluation import softmax
 
@@ -355,7 +380,7 @@ def _evaluate_variant(
         return out, idx, []
     new_texts = [perturbed[i] for i in idx]
     old_logits, new_logits = base_logits[idx], predict_logits(new_texts)
-    p_old, p_new = softmax(old_logits), softmax(new_logits)
+    p_old, p_new = softmax(old_logits, temperature), softmax(new_logits, temperature)
     pred_old, pred_new = p_old.argmax(axis=1), p_new.argmax(axis=1)
     y = y_true[idx]
     flips = pred_old != pred_new
@@ -390,27 +415,78 @@ def _evaluate_variant(
 
 
 def run_us_to_eu_counterfactual_audit(
-    test_texts: List[str], test_labels: np.ndarray, predict_logits, label_names: List[str]
+    test_texts: List[str],
+    test_labels: np.ndarray,
+    predict_logits,
+    label_names: List[str],
+    temperature: float = 1.0,
 ) -> Dict[str, Any]:
-    """Pour chaque remplacement : taux de changement de prediction (flip) et baisse de confiance.
-    `predict_logits(textes)` doit renvoyer un tableau (n_textes, n_classes)."""
+    """Evaluate prediction flip rate and confidence drop for each US->EU perturbation variant."""
     y_true = np.asarray(test_labels)
     base_logits = np.asarray(predict_logits(list(test_texts)))
     results: Dict[str, Any] = {"variants": {}}
     exports: Dict[str, Any] = {}
     for name, transform in make_perturbations().items():
-        res, idx, new_texts = _evaluate_variant(transform, test_texts, y_true, predict_logits, base_logits, label_names)
+        res, idx, new_texts = _evaluate_variant(
+            transform, test_texts, y_true, predict_logits, base_logits, label_names, temperature=temperature
+        )
         results["variants"][name] = res
         exports[name] = {"indices": [int(i) for i in idx], "texts": new_texts}
     return {"results": results, "exports": exports}
 
 
+def compute_us_specific_and_cohort_baselines(
+    outputs_dir: Path = OUTPUTS_DIR,
+    cohort_indices: Dict[str, List[int]] | None = None,
+) -> Dict[str, Any]:
+    """
+    Compute baseline accuracy and 95% Wilson CIs on US-specific statutory classes
+    ('Erisa', 'Waiver Of Jury Trials') and US perturbation cohorts across all 3 models
+    (Legal-BERT, TF-IDF, Calibrated Ensemble) using the saved test logits.
+    """
+    y_test = np.load(outputs_dir / "test_labels.npy")
+    with open(outputs_dir / "label_names.json", encoding="utf-8") as f:
+        label_names = json.load(f)
+    model_logits = _load_model_test_logits(outputs_dir)
+
+    us_classes: Dict[str, Any] = {}
+    for cname in US_SPECIFIC_CLASSES:
+        if cname not in label_names:
+            continue
+        cid = label_names.index(cname)
+        mask = y_test == cid
+        n = int(mask.sum())
+        us_classes[cname] = {"class_id": cid, "n_test": n, "models": {}}
+        for mname, logits in model_logits.items():
+            k = int((logits.argmax(axis=1)[mask] == cid).sum())
+            p, lo, hi = wilson_confidence_interval(k, n)
+            us_classes[cname]["models"][mname] = {"k": k, "n": n, "recall": p, "ci_lower": lo, "ci_upper": hi}
+
+    cohort_acc: Dict[str, Any] = {}
+    if cohort_indices:
+        for variant_name, idx_list in cohort_indices.items():
+            idx = np.asarray(idx_list, dtype=np.int64)
+            n = len(idx)
+            if n == 0:
+                continue
+            cohort_acc[variant_name] = {"n": n, "models": {}}
+            for mname, logits in model_logits.items():
+                k = int((logits.argmax(axis=1)[idx] == y_test[idx]).sum())
+                p, lo, hi = wilson_confidence_interval(k, n)
+                cohort_acc[variant_name]["models"][mname] = {"k": k, "n": n, "accuracy": p, "ci_lower": lo, "ci_upper": hi}
+
+    return {"us_specific_classes_test_summary": us_classes, "cohort_original_accuracy_by_model": cohort_acc}
+
+
 def format_counterfactual_report(model: str, results: Dict[str, Any]) -> str:
-    lines = [f"\n=== {model} : test contrefactuel US -> Europe ==="]
-    lines.append(f"{'variante':<17} {'clauses changees':>17}   {'flip [IC 95 %]':<24} {'exactitude avant -> apres':<27} {'baisse de confiance [IC 95 %]'}")
+    lines = [f"\n=== {model} : US -> European Law Counterfactual Perturbation Audit ==="]
+    lines.append(
+        f"{'variant':<17} {'modified clauses':>17}   {'flip rate [95% CI]':<24} "
+        f"{'accuracy before -> after':<27} {'confidence drop [95% CI]'}"
+    )
     for name, r in results["variants"].items():
         if r["n_changed"] == 0:
-            lines.append(f"{name:<17} {0:>17}   (aucune clause concernee)")
+            lines.append(f"{name:<17} {0:>17}   (no matching clauses)")
             continue
         f, a0, a1, c = r["flip_rate"], r["accuracy_original"], r["accuracy_perturbed"], r["confidence_drop"]
         lines.append(
@@ -423,35 +499,37 @@ def format_counterfactual_report(model: str, results: Dict[str, Any]) -> str:
         r = results["variants"].get(name)
         if not r or r["n_changed"] == 0:
             continue
-        lines.append(f"\n--- {name} : changements de categorie les plus frequents ---")
+        lines.append(f"\n--- {name} : most frequent prediction flips ---")
         for t in r["top_flips"]:
             lines.append(f"   {t['count']:>4}  {t['from']}  ->  {t['to']}")
         for cname, d in r["us_specific_classes"].items():
             if d["n_changed"] == 0:
                 continue
-            lines.append(f"   classe americaine {cname}: {d['n_flips']}/{d['n_changed']} changent = {d['p']:.3f} [{d['ci_lower']:.3f}; {d['ci_upper']:.3f}]")
+            lines.append(
+                f"   US-specific class {cname}: {d['n_flips']}/{d['n_changed']} flip = "
+                f"{d['p']:.3f} [{d['ci_lower']:.3f}; {d['ci_upper']:.3f}]"
+            )
     return "\n".join(lines)
 
 
 def _main_length() -> None:
     from src.data import load_ledgar
 
-    dataset, _ = load_ledgar()  # test COMPLET, ordre d'origine (comme les logits de la personne 1)
+    dataset, _ = load_ledgar()
     test_texts = dataset["test"]["text"]
     test_labels = np.array(dataset["test"]["label"])
 
     saved_labels = np.load(OUTPUTS_DIR / "test_labels.npy")
     if len(saved_labels) != len(test_labels) or not np.array_equal(saved_labels, test_labels):
-        raise SystemExit("ERREUR : l'ordre du test ne correspond pas a outputs/test_labels.npy -> on arrete.")
+        raise SystemExit("ERROR: test split order does not match outputs/test_labels.npy.")
 
     results = {}
-    for name, file in (("Legal-BERT", "legal_bert_test_logits.npy"), ("TF-IDF", "tfidf_test_logits.npy")):
-        logits = np.load(OUTPUTS_DIR / file)
+    for name, logits in _load_model_test_logits().items():
         results[name] = run_length_truncation_audit(test_texts, test_labels, logits)
 
     print(format_length_table(results))
     save_length_results(results)
-    print(f"\nFichiers ecrits dans {AUDIT_DIR}/length_audit.json et .csv")
+    print(f"\nSaved {AUDIT_DIR}/length_audit.json and .csv")
 
 
 def _train_or_load_tfidf(train_texts, train_labels, cache_dir: Path):
@@ -474,39 +552,64 @@ def _train_or_load_tfidf(train_texts, train_labels, cache_dir: Path):
 
 def _main_counterfactual() -> None:
     from src.data import load_ledgar
+    from src.evaluation import fit_temperature
 
     dataset, _ = load_ledgar()
     test_texts = dataset["test"]["text"]
     test_labels = np.array(dataset["test"]["label"])
     saved_labels = np.load(OUTPUTS_DIR / "test_labels.npy")
     if len(saved_labels) != len(test_labels) or not np.array_equal(saved_labels, test_labels):
-        raise SystemExit("ERREUR : l'ordre du test ne correspond pas a outputs/test_labels.npy -> on arrete.")
+        raise SystemExit("ERROR: test split order does not match outputs/test_labels.npy.")
     with open(OUTPUTS_DIR / "label_names.json", encoding="utf-8") as f:
         label_names = json.load(f)
 
-    print("Entrainement de TF-IDF + regression logistique (quelques minutes la 1re fois, ensuite c'est en cache)...")
-    vectorizer, clf = _train_or_load_tfidf(dataset["train"]["text"], np.array(dataset["train"]["label"]), AUDIT_DIR / "_cache")
+    print("Training/loading TF-IDF + LogisticRegression (cached after first run)...")
+    vectorizer, clf = _train_or_load_tfidf(
+        dataset["train"]["text"], np.array(dataset["train"]["label"]), AUDIT_DIR / "_cache"
+    )
 
     def predict_logits(texts):
         return clf.decision_function(vectorizer.transform(texts)).astype(np.float32)
 
-    # controle : notre TF-IDF doit retrouver (presque) les memes predictions que celui de la personne 1
     ours = predict_logits(test_texts).argmax(axis=1)
     theirs = np.load(OUTPUTS_DIR / "tfidf_test_logits.npy").argmax(axis=1)
-    print(f"Controle : accord avec les predictions TF-IDF de la personne 1 = {100 * (ours == theirs).mean():.2f} %"
-          f" | notre exactitude sur le test = {(ours == test_labels).mean():.4f}")
+    print(
+        f"Verification: agreement with Person 1 saved TF-IDF predictions = {100 * (ours == theirs).mean():.2f}% "
+        f"| test accuracy = {(ours == test_labels).mean():.4f}"
+    )
 
-    out = run_us_to_eu_counterfactual_audit(test_texts, test_labels, predict_logits, label_names)
+    val_labels = np.load(OUTPUTS_DIR / "val_labels.npy")
+    tfidf_val_logits = np.load(OUTPUTS_DIR / "tfidf_val_logits.npy")
+    tfidf_temp = fit_temperature(tfidf_val_logits, val_labels)
+
+    out = run_us_to_eu_counterfactual_audit(test_texts, test_labels, predict_logits, label_names, temperature=1.0)
+    out_cal = run_us_to_eu_counterfactual_audit(
+        test_texts, test_labels, predict_logits, label_names, temperature=tfidf_temp
+    )
+    for vname, vres in out["results"]["variants"].items():
+        if vres["n_changed"] > 0:
+            vres["confidence_drop_calibrated"] = out_cal["results"]["variants"][vname]["confidence_drop"]
+
     print(format_counterfactual_report("TF-IDF", out["results"]))
+
+    cohort_indices = {k: v["indices"] for k, v in out["exports"].items()}
+    multi_model_baselines = compute_us_specific_and_cohort_baselines(OUTPUTS_DIR, cohort_indices)
 
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     with open(AUDIT_DIR / "counterfactual_audit.json", "w", encoding="utf-8") as f:
-        json.dump({"model": "TF-IDF (reentraine, memes reglages que la personne 1)", "results": out["results"]},
-                  f, indent=2, ensure_ascii=False)
-    # textes modifies : pour que la personne 1 les passe dans Legal-BERT (Colab) et renvoie les logits
+        json.dump(
+            {
+                "model": "TF-IDF (full-text lexical classifier, exact Person 1 hyperparameters) + Multi-Model US Cohort Baselines",
+                "results": out["results"],
+                **multi_model_baselines,
+            },
+            f,
+            indent=2,
+            ensure_ascii=False,
+        )
     with open(AUDIT_DIR / "counterfactual_perturbed_texts.json", "w", encoding="utf-8") as f:
         json.dump(out["exports"], f, ensure_ascii=False)
-    print(f"\nFichiers ecrits dans {AUDIT_DIR}/counterfactual_audit.json et counterfactual_perturbed_texts.json")
+    print(f"\nSaved {AUDIT_DIR}/counterfactual_audit.json and counterfactual_perturbed_texts.json")
 
 
 # ----------------------------------------------------------------------------------------------
@@ -522,47 +625,76 @@ TRAIN_SIZE_BUCKETS = [
 
 def run_long_tail_audit(outputs_dir: Path = OUTPUTS_DIR) -> Dict[str, Any]:
     """
-    Compare F1 et largeur de l'IC 95 % entre les classes Head (n_train >= 1000),
-    Medium (150 <= n_train < 1000) et Tail (n_train < 150) pour Legal-BERT, TF-IDF et Ensemble.
+    Compare F1 and 95% CI width across Head (n_train >= 1000), Medium (150 <= n_train < 1000),
+    and Tail (n_train < 150) classes for Legal-BERT, TF-IDF, and the Calibrated Ensemble.
+    Uses standard csv module so it runs with or without pandas installed.
     """
-    import pandas as pd
+    with open(outputs_dir / "class_distribution.csv", encoding="utf-8") as f:
+        dist_rows = [
+            {
+                "class_id": int(r["class_id"]),
+                "class_name": r["class_name"],
+                "train_count": int(r["train_count"]),
+                "val_count": int(r["val_count"]),
+                "test_count": int(r["test_count"]),
+            }
+            for r in csv.DictReader(f)
+        ]
 
-    dist = pd.read_csv(outputs_dir / "class_distribution.csv")
     eval_dir = outputs_dir / "evaluation"
-    models = {
-        "Legal-BERT": pd.read_csv(eval_dir / "legal_bert_per_class.csv"),
-        "TF-IDF": pd.read_csv(eval_dir / "tfidf_per_class.csv"),
-        "Ensemble": pd.read_csv(eval_dir / "ensemble_per_class.csv"),
-    }
+    models: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    for model_name, fname in (
+        ("Legal-BERT", "legal_bert_per_class.csv"),
+        ("TF-IDF", "tfidf_per_class.csv"),
+        ("Ensemble", "ensemble_per_class.csv"),
+    ):
+        with open(eval_dir / fname, encoding="utf-8") as f:
+            models[model_name] = {
+                int(r["class_id"]): {
+                    "class_id": int(r["class_id"]),
+                    "class_name": r["class_name"],
+                    "n_test": int(r["n_test"]),
+                    "f1": float(r["f1"]),
+                    "f1_ci_lower": float(r["f1_ci_lower"]),
+                    "f1_ci_upper": float(r["f1_ci_upper"]),
+                    "f1_ci_width": float(r["f1_ci_width"]),
+                    "tier": r["tier"],
+                }
+                for r in csv.DictReader(f)
+            }
 
     results_by_model: Dict[str, List[Dict[str, Any]]] = {}
-    for model_name, df_eval in models.items():
-        merged = pd.merge(dist, df_eval, on=["class_id", "class_name"], how="inner")
+    for model_name, eval_by_id in models.items():
+        merged = [{**d, **eval_by_id[d["class_id"]]} for d in dist_rows if d["class_id"] in eval_by_id]
         rows = []
         for bucket_name, low, high in TRAIN_SIZE_BUCKETS:
-            sub = merged[(merged["train_count"] >= low) & (merged["train_count"] < high)]
+            sub = [r for r in merged if low <= r["train_count"] < high]
+            f1s = np.array([r["f1"] for r in sub], dtype=float)
+            widths = np.array([r["f1_ci_width"] for r in sub], dtype=float)
+            trains = np.array([r["train_count"] for r in sub], dtype=float)
+            tests = np.array([r["n_test"] for r in sub], dtype=float)
             rows.append({
                 "bucket": bucket_name,
                 "n_classes": int(len(sub)),
-                "mean_train_count": float(sub["train_count"].mean()),
-                "mean_test_count": float(sub["n_test"].mean()),
-                "mean_f1": float(sub["f1"].mean()),
-                "median_f1": float(sub["f1"].median()),
-                "min_f1": float(sub["f1"].min()),
-                "mean_ci_width": float(sub["f1_ci_width"].mean()),
-                "max_ci_width": float(sub["f1_ci_width"].max()),
-                "n_zero_f1": int((sub["f1"] == 0.0).sum()),
-                "zero_f1_classes": sub.loc[sub["f1"] == 0.0, "class_name"].tolist(),
-                "tier_1_auto": int((sub["tier"].str.startswith("Tier 1")).sum()),
-                "tier_2_assisted": int((sub["tier"].str.startswith("Tier 2")).sum()),
-                "tier_3_blocked": int((sub["tier"].str.startswith("Tier 3")).sum()),
+                "mean_train_count": float(trains.mean()),
+                "mean_test_count": float(tests.mean()),
+                "mean_f1": float(f1s.mean()),
+                "median_f1": float(np.median(f1s)),
+                "min_f1": float(f1s.min()),
+                "mean_ci_width": float(widths.mean()),
+                "max_ci_width": float(widths.max()),
+                "n_zero_f1": int((f1s == 0.0).sum()),
+                "zero_f1_classes": [r["class_name"] for r in sub if r["f1"] == 0.0],
+                "tier_1_auto": int(sum(r["tier"].startswith("Tier 1") for r in sub)),
+                "tier_2_assisted": int(sum(r["tier"].startswith("Tier 2") for r in sub)),
+                "tier_3_blocked": int(sum(r["tier"].startswith("Tier 3") for r in sub)),
             })
         results_by_model[model_name] = rows
 
-    # 10 classes les plus rares dans le jeu d'entrainement
-    tail_10 = dist.sort_values("train_count", ascending=True).head(10)
+    # 10 rarest classes in the training split
+    tail_10 = sorted(dist_rows, key=lambda r: r["train_count"])[:10]
     tail_comparison = []
-    for _, row in tail_10.iterrows():
+    for row in tail_10:
         cid = int(row["class_id"])
         entry: Dict[str, Any] = {
             "class_id": cid,
@@ -570,8 +702,8 @@ def run_long_tail_audit(outputs_dir: Path = OUTPUTS_DIR) -> Dict[str, Any]:
             "n_train": int(row["train_count"]),
             "n_test": int(row["test_count"]),
         }
-        for model_name, df_eval in models.items():
-            m_row = df_eval[df_eval["class_id"] == cid].iloc[0]
+        for model_name, eval_by_id in models.items():
+            m_row = eval_by_id[cid]
             entry[model_name] = {
                 "f1": float(m_row["f1"]),
                 "ci_lower": float(m_row["f1_ci_lower"]),
@@ -605,64 +737,106 @@ def _main_long_tail() -> None:
                 ])
 
     for model_name, rows in res["buckets_by_model"].items():
-        print(f"\n=== {model_name} : Biais de taille d'echantillon (Head / Medium / Tail) ===")
-        print(f"{'Tranche':<32} {'Classes':>7} {'F1 moyen':>9} {'Largeur IC moy':>15} {'F1=0':>6} {'T1/T2/T3':>12}")
+        print(f"\n=== {model_name} : Sample-Size / Long-Tail Bias (Head / Medium / Tail) ===")
+        print(f"{'Bucket':<32} {'Classes':>7} {'Mean F1':>9} {'Mean CI Width':>15} {'F1=0':>6} {'T1/T2/T3':>12}")
         for r in rows:
             tiers = f"{r['tier_1_auto']}/{r['tier_2_assisted']}/{r['tier_3_blocked']}"
             print(
                 f"{r['bucket']:<32} {r['n_classes']:>7} {r['mean_f1']:>9.3f} "
                 f"{r['mean_ci_width']:>15.3f} {r['n_zero_f1']:>6} {tiers:>12}"
             )
-    print(f"\nFichiers ecrits dans {AUDIT_DIR}/long_tail_audit.json et .csv")
+    print(f"\nSaved {AUDIT_DIR}/long_tail_audit.json and .csv")
 
 
 def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
-    """Genere les figures PNG pour la presentation (Retrieval, Long-Tail, Longueur, Contrefactuel US->EU)."""
+    """Generate English PNG figures for Retrieval, Long-Tail Bias, Length Truncation, and US->EU Counterfactual audits."""
     import matplotlib
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    import pandas as pd
 
     audit_dir = outputs_dir / "bias_audit"
     retr_dir = outputs_dir / "retrieval_eval"
     audit_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1) Long-Tail Bias : largeur de l'IC 95 % et F1 en fonction de n_train (echelle log)
-    dist = pd.read_csv(outputs_dir / "class_distribution.csv")
-    lb = pd.read_csv(outputs_dir / "evaluation" / "legal_bert_per_class.csv")
-    tf = pd.read_csv(outputs_dir / "evaluation" / "tfidf_per_class.csv")
-    ens = pd.read_csv(outputs_dir / "evaluation" / "ensemble_per_class.csv")
-    m_lb = pd.merge(dist, lb, on=["class_id", "class_name"])
-    m_tf = pd.merge(dist, tf, on=["class_id", "class_name"])
-    m_ens = pd.merge(dist, ens, on=["class_id", "class_name"])
+    # 1) Long-Tail Bias: F1 vs n_train (log scale) and 95% CI width vs n_test (log scale)
+    with open(outputs_dir / "class_distribution.csv", encoding="utf-8") as f:
+        dist = {int(r["class_id"]): int(r["train_count"]) for r in csv.DictReader(f)}
 
-    fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
-    axes[0].scatter(m_lb["train_count"], m_lb["f1"], alpha=0.65, s=26, color="#c0392b", label="Legal-BERT (5 classes à F1=0)")
-    axes[0].scatter(m_ens["train_count"], m_ens["f1"], alpha=0.75, s=26, color="#2e8b57", label="Ensemble (0.45 LB + 0.55 TF-IDF)")
-    axes[0].axvline(150, color="grey", linestyle="--", linewidth=1, label="Seuil Tail (n_train = 150)")
-    axes[0].axvline(1000, color="black", linestyle=":", linewidth=1, label="Seuil Head (n_train = 1000)")
+    def _load_per_class(fname: str) -> List[Dict[str, Any]]:
+        with open(outputs_dir / "evaluation" / fname, encoding="utf-8") as f:
+            return [
+                {
+                    "class_id": int(r["class_id"]),
+                    "class_name": r["class_name"],
+                    "train_count": dist[int(r["class_id"])],
+                    "n_test": int(r["n_test"]),
+                    "f1": float(r["f1"]),
+                    "f1_ci_width": float(r["f1_ci_width"]),
+                }
+                for r in csv.DictReader(f)
+            ]
+
+    m_lb = _load_per_class("legal_bert_per_class.csv")
+    m_ens = _load_per_class("ensemble_per_class.csv")
+
+    fig, axes = plt.subplots(1, 2, figsize=(12.0, 4.8))
+    axes[0].scatter(
+        [r["train_count"] for r in m_lb],
+        [r["f1"] for r in m_lb],
+        alpha=0.65,
+        s=26,
+        color="#c0392b",
+        label="Legal-BERT (5 classes at F1=0)",
+    )
+    axes[0].scatter(
+        [r["train_count"] for r in m_ens],
+        [r["f1"] for r in m_ens],
+        alpha=0.75,
+        s=26,
+        color="#2e8b57",
+        label="Calibrated Ensemble (0.45 LB + 0.55 TF-IDF)",
+    )
+    axes[0].axvline(150, color="grey", linestyle="--", linewidth=1, label="Tail threshold (n_train = 150)")
+    axes[0].axvline(1000, color="black", linestyle=":", linewidth=1, label="Head threshold (n_train = 1,000)")
     axes[0].set_xscale("log")
-    axes[0].set_xlabel("Taille d'entraînement n_train (échelle log)")
-    axes[0].set_ylabel("F1 par classe sur le test")
+    axes[0].set_xlabel("Training sample size n_train (log scale)")
+    axes[0].set_ylabel("Per-class Test F1")
     axes[0].set_ylim(-0.04, 1.03)
-    axes[0].set_title("Effondrement de Legal-BERT sur la longue traîne (Tail)")
+    axes[0].set_title("Long-Tail Sample-Size Collapse (Test F1 vs. n_train)")
     axes[0].legend(fontsize=8, loc="lower right")
 
-    axes[1].scatter(m_ens["n_test"], m_ens["f1_ci_width"], alpha=0.75, s=28, color="#2b6cb0")
-    for _, r in m_ens.nsmallest(5, "n_test").iterrows():
+    axes[1].scatter(
+        [r["n_test"] for r in m_ens],
+        [r["f1_ci_width"] for r in m_ens],
+        alpha=0.75,
+        s=28,
+        color="#2b6cb0",
+        label="Ensemble per-class 95% CI width",
+    )
+    offsets = {
+        "Books": (6, -8),
+        "Assigns": (6, 4),
+        "Qualifications": (6, -2),
+        "Powers": (6, 4),
+        "Sanctions": (-78, -4),
+    }
+    for r in sorted(m_ens, key=lambda x: x["n_test"])[:5]:
+        dx, dy = offsets.get(r["class_name"], (6, 2))
         axes[1].annotate(
             f"{r['class_name']} (n={int(r['n_test'])})",
             (r["n_test"], r["f1_ci_width"]),
             textcoords="offset points",
-            xytext=(6, 2),
-            fontsize=7.5,
+            xytext=(dx, dy),
+            fontsize=8,
+            fontweight="medium",
         )
-    axes[1].axhline(0.30, color="#c0392b", linestyle="--", linewidth=1, label="Plafond Auto-Tag (largeur IC <= 0.30)")
+    axes[1].axhline(0.30, color="#c0392b", linestyle="--", linewidth=1.2, label="Tier-1 Auto-Tag ceiling (CI width <= 0.30)")
     axes[1].set_xscale("log")
-    axes[1].set_xlabel("Taille d'échantillon test n_test (échelle log)")
-    axes[1].set_ylabel("Largeur de l'IC 95 % du F1")
-    axes[1].set_title("Explosion de l'incertitude (IC 95 %) quand n_test < 15")
+    axes[1].set_ylim(-0.03, 1.08)
+    axes[1].set_xlabel("Test sample size n_test (log scale)")
+    axes[1].set_ylabel("95% Confidence Interval Width of F1")
+    axes[1].set_title("95% CI Width Explosion When n_test < 15")
     axes[1].legend(fontsize=8, loc="upper right")
     fig.tight_layout()
     fig.savefig(audit_dir / "long_tail_bias.png", dpi=150)
@@ -674,21 +848,24 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
             len_data = json.load(f)["results"]
         buckets = [r["bucket"] for r in len_data["Legal-BERT"]]
         x = np.arange(len(buckets))
-        width = 0.34
-        fig, ax = plt.subplots(figsize=(8.2, 4.6))
-        for i, (m_name, color) in enumerate((("Legal-BERT", "#c0392b"), ("TF-IDF", "#2b6cb0"))):
+        model_list = [("Legal-BERT", "#c0392b"), ("TF-IDF", "#2b6cb0")]
+        if "Ensemble" in len_data:
+            model_list.append(("Ensemble", "#2e8b57"))
+        width = 0.8 / len(model_list)
+        fig, ax = plt.subplots(figsize=(8.6, 4.6))
+        for i, (m_name, color) in enumerate(model_list):
             rows = len_data[m_name]
             acc = np.array([r["accuracy"] for r in rows])
             lo = acc - np.array([r["ci_lower"] for r in rows])
             hi = np.array([r["ci_upper"] for r in rows]) - acc
-            offset = (i - 0.5) * width
-            ax.bar(x + offset, acc, width=width, color=color, alpha=0.88, label=m_name)
+            offset = (i - (len(model_list) - 1) / 2) * width
+            ax.bar(x + offset, acc, width=width * 0.92, color=color, alpha=0.88, label=m_name)
             ax.errorbar(x + offset, acc, yerr=[lo, hi], fmt="none", ecolor="black", capsize=4, lw=1.2)
         ax.set_xticks(x)
-        ax.set_xticklabels([f"{b} mots\n(n={r['n']})" for b, r in zip(buckets, len_data["Legal-BERT"])])
+        ax.set_xticklabels([f"{b} words\n(n={r['n']:,})" for b, r in zip(buckets, len_data["Legal-BERT"])])
         ax.set_ylim(0.78, 0.94)
-        ax.set_ylabel("Exactitude (Accuracy) + IC 95 % de Wilson")
-        ax.set_title("Audit 1 — Biais de longueur & troncature à 256 tokens (>260 mots : TF-IDF +2.2 pts)")
+        ax.set_ylabel("Test Accuracy (with 95% Wilson CI)")
+        ax.set_title("Audit 1 — Clause Length & 256-Token Truncation Bias (>260 words: TF-IDF +2.2 pts)")
         ax.legend()
         fig.tight_layout()
         fig.savefig(audit_dir / "length_truncation_bias.png", dpi=150)
@@ -700,13 +877,13 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
             cf = json.load(f)["results"]["variants"]
         order = ["control_US_swap", "currency_EUR", "regulator_ESMA", "juris_DE", "juris_FR", "all_FR", "statute_GDPR"]
         labels = [
-            "Témoin US\n(Delaware->Ohio)",
-            "Devise\n($ -> EUR)",
-            "Régulateur\n(SEC -> ESMA)",
-            "Droit allemand\n(-> Germany)",
-            "Droit français\n(-> France)",
-            "Contrat FR complet\n(FR + EUR + ESMA)",
-            "Statut social/RGPD\n(ERISA -> GDPR)",
+            f"US Control (Delaware->Ohio)\n(n={cf['control_US_swap']['n_changed']}, k={cf['control_US_swap']['flip_rate']['k']} flips)",
+            f"Currency ($ -> EUR)\n(n={cf['currency_EUR']['n_changed']}, k={cf['currency_EUR']['flip_rate']['k']} flip)",
+            f"Regulator (SEC -> ESMA)\n(n={cf['regulator_ESMA']['n_changed']}, k={cf['regulator_ESMA']['flip_rate']['k']} flips)",
+            f"German Law (-> Germany)\n(n={cf['juris_DE']['n_changed']}, k={cf['juris_DE']['flip_rate']['k']} flips)",
+            f"French Law (-> France)\n(n={cf['juris_FR']['n_changed']}, k={cf['juris_FR']['flip_rate']['k']} flips)",
+            f"Full FR Union (FR+EUR+ESMA)\n(n={cf['all_FR']['n_changed']}, k={cf['all_FR']['flip_rate']['k']} flips)",
+            f"EU Statute (ERISA -> GDPR)\n(n={cf['statute_GDPR']['n_changed']}, k={cf['statute_GDPR']['flip_rate']['k']} flips)",
         ]
         y = np.arange(len(order))
         flips = np.array([100 * cf[k]["flip_rate"]["p"] for k in order])
@@ -717,20 +894,20 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
         d_lo = drops - np.array([100 * cf[k]["confidence_drop"]["ci_lower"] for k in order])
         d_hi = np.array([100 * cf[k]["confidence_drop"]["ci_upper"] for k in order]) - drops
 
-        fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6), sharey=True)
+        fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.9), sharey=True)
         colors = ["#7f8c8d", "#2e8b57", "#2e8b57", "#e69f00", "#e69f00", "#d35400", "#c0392b"]
         axes[0].barh(y, flips, color=colors, alpha=0.88)
         axes[0].errorbar(flips, y, xerr=[f_lo, f_hi], fmt="none", ecolor="black", capsize=3, lw=1.1)
         axes[0].set_yticks(y)
         axes[0].set_yticklabels(labels, fontsize=8.5)
-        axes[0].set_xlabel("Taux de bascule de prédiction (Flip Rate %, IC 95 %)")
-        axes[0].set_title("Changement d'avis du modèle (US -> UE)")
+        axes[0].set_xlabel("Prediction Flip Rate (%, 95% Wilson CI)")
+        axes[0].set_title("Label Instability Under US -> EU Swaps")
 
         axes[1].barh(y, drops, color=colors, alpha=0.88)
         axes[1].errorbar(drops, y, xerr=[d_lo, d_hi], fmt="none", ecolor="black", capsize=3, lw=1.1)
-        axes[1].set_xlabel("Baisse moyenne de confiance (points de %, IC 95 %)")
-        axes[1].set_title("Chute de probabilité (Confiance avant - après)")
-        fig.suptitle("Audit 3 — Test contrefactuel de transfert US (SEC) -> Droit Européen")
+        axes[1].set_xlabel("Mean Confidence Drop (percentage points, 95% Bootstrap CI)")
+        axes[1].set_title("Confidence Drop (Original - Perturbed Probability)")
+        fig.suptitle("Audit 3 — US (SEC) to European Law Counterfactual Perturbation Test", fontsize=11.5)
         fig.tight_layout()
         fig.savefig(audit_dir / "counterfactual_audit.png", dpi=150)
         plt.close(fig)
@@ -742,7 +919,7 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
         with open(retr_dir / "retrieval_lawyer_queries.json", encoding="utf-8") as f:
             r_law = json.load(f)["results"]["modes"]
 
-        fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.6))
+        fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.8))
         # Panel A: Clause-to-Clause (n=1000 test queries)
         m1 = ["dense", "bm25", "hybrid"]
         lbl1 = ["Dense\n(MiniLM-L6)", "BM25\n(Lexical)", "Hybrid\n(RRF)"]
@@ -755,12 +932,16 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
         axes[0].set_xticks(x1)
         axes[0].set_xticklabels(lbl1)
         axes[0].set_ylim(68, 82)
-        axes[0].set_ylabel("Precision@5 (%, IC 95 % Bootstrap)")
-        axes[0].set_title("Recherche Clause-à-Clause (Test, n=1 000)\nHybrid bat Dense de +2.0 pts* (significatif)")
+        axes[0].set_ylabel("Precision@5 (%, 95% Bootstrap CI)")
+        axes[0].set_title(
+            "Clause-to-Clause Precedent Search (Test, n=1,000)\n"
+            "Hybrid RRF beats Dense by +2.0 pts* (95% CI [+1.0, +3.1])",
+            fontsize=10.2,
+        )
 
         # Panel B: Lawyer Constraint Queries (n=20 queries with numbers/states)
         m2 = ["dense", "dense+filtre", "hybrid", "bm25", "hybrid+filtre"]
-        lbl2 = ["Dense\nseul", "Dense\n+ Filtre", "Hybrid\nseul", "BM25\nseul", "Hybrid\n+ Filtre"]
+        lbl2 = ["Dense\nOnly", "Dense\n+ Filter", "Hybrid\nOnly", "BM25\nOnly", "Hybrid\n+ Filter"]
         p2 = np.array([100 * r_law[m]["precision"]["estimate"] for m in m2])
         p2_lo = p2 - np.array([100 * r_law[m]["precision"]["ci_lower"] for m in m2])
         p2_hi = np.array([100 * r_law[m]["precision"]["ci_upper"] for m in m2]) - p2
@@ -768,16 +949,20 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
         axes[1].bar(x2, p2, color=["#c0392b", "#e69f00", "#2b6cb0", "#34495e", "#2e8b57"], width=0.58, alpha=0.9)
         axes[1].errorbar(x2, p2, yerr=[p2_lo, p2_hi], fmt="none", ecolor="black", capsize=4, lw=1.2)
         axes[1].set_xticks(x2)
-        axes[1].set_xticklabels(lbl2, fontsize=8.5)
+        axes[1].set_xticklabels(lbl2, fontsize=8.8)
         axes[1].set_ylim(0, 95)
-        axes[1].set_ylabel("Precision@5 (%, IC 95 % Bootstrap)")
-        axes[1].set_title("Requêtes Avocat avec Contrainte Chiffrée (n=20)\nDense s'effondre à 45 % ('30 days' vs '60 days') ; Hybrid+Filtre = 68 %*")
+        axes[1].set_ylabel("Precision@5 (%, 95% Bootstrap CI)")
+        axes[1].set_title(
+            "Lawyer Numerical & Jurisdiction Queries (n=20)\n"
+            "Dense drops to 45% ('30' vs '60' days); BM25=69%*, Hybrid+Filter=68%*",
+            fontsize=10.2,
+        )
 
         fig.tight_layout()
         fig.savefig(retr_dir / "retrieval_comparison.png", dpi=150)
         plt.close(fig)
 
-    print(f"Figures PNG generees dans {audit_dir} et {retr_dir}")
+    print(f"Generated English PNG figures in {audit_dir} and {retr_dir}")
 
 
 if __name__ == "__main__":

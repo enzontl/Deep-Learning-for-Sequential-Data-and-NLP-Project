@@ -19,3 +19,13 @@ TF-IDF,7,Entire Agreements,Integration,0,22,22,0.016188373804267846
 TF-IDF,8,Authority,Authorizations,8,13,21,0.01545253863134658
 TF-IDF,9,General,Payments,16,2,18,0.013245033112582781
 TF-IDF,10,Representations,Warranties,7,11,18,0.013245033112582781
+Ensemble,1,Applicable Laws,Governing Laws,42,0,42,0.03434178250204415
+Ensemble,2,Tax Withholdings,Withholdings,25,11,36,0.029435813573180702
+Ensemble,3,No Waivers,Waivers,21,12,33,0.02698282910874898
+Ensemble,4,Entire Agreements,Integration,0,30,30,0.024529844644317254
+Ensemble,5,Amendments,Modifications,4,24,28,0.022894521668029435
+Ensemble,6,Defined Terms,Definitions,18,9,27,0.022076860179885527
+Ensemble,7,Authority,Authorizations,10,16,26,0.02125919869174162
+Ensemble,8,Binding Effects,Successors,4,19,23,0.018806214227309895
+Ensemble,9,Representations,Warranties,7,14,21,0.017170891251022075
+Ensemble,10,Indemnifications,Indemnity,1,19,20,0.016353229762878167

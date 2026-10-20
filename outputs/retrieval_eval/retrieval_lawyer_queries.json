@@ -311,6 +311,30 @@
           "ci_upper": 0.17166666666666666,
           "significant": false
         }
+      },
+      "bm25_minus_dense": {
+        "precision": {
+          "estimate": 0.24,
+          "ci_lower": 0.11000000000000001,
+          "ci_upper": 0.39,
+          "significant": true
+        }
+      },
+      "hybrid+filtre_minus_bm25": {
+        "precision": {
+          "estimate": -0.010000000000000014,
+          "ci_lower": -0.12000000000000002,
+          "ci_upper": 0.09999999999999998,
+          "significant": false
+        }
+      },
+      "hybrid_minus_bm25": {
+        "precision": {
+          "estimate": -0.08,
+          "ci_lower": -0.18,
+          "ci_upper": 0.00999999999999999,
+          "significant": false
+        }
       }
     },
     "per_query_precision": {
