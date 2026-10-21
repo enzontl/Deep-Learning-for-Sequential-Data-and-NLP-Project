@@ -29,7 +29,7 @@ import csv
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 
@@ -314,6 +314,44 @@ def _swap_statute(text: str) -> str:
     return _ERISA_ABBR_RE.sub("GDPR", text)
 
 
+_PARTY_ROLE_SWAP_MAP = {
+    "lender": "Borrower",
+    "lenders": "Borrowers",
+    "borrower": "Lender",
+    "borrowers": "Lenders",
+    "employer": "Employee",
+    "employers": "Employees",
+    "employee": "Employer",
+    "employees": "Employers",
+    "landlord": "Tenant",
+    "landlords": "Tenants",
+    "tenant": "Landlord",
+    "tenants": "Landlords",
+    "licensor": "Licensee",
+    "licensors": "Licensees",
+    "licensee": "Licensor",
+    "licensees": "Licensors",
+}
+_PARTY_ROLE_RE = re.compile(
+    r"\b(Lenders?|Borrowers?|Employers?|Employees?|Landlords?|Tenants?|Licensors?|Licensees?)\b",
+    re.IGNORECASE,
+)
+
+
+def _swap_party_roles(text: str) -> str:
+    """Counterfactual party/role symmetry test (Session 7 Slide 24): swap symmetric contractual party roles."""
+    def _repl(m: "re.Match") -> str:
+        word = m.group(0)
+        target = _PARTY_ROLE_SWAP_MAP[word.lower()]
+        if word.isupper():
+            return target.upper()
+        if word[0].isupper():
+            return target
+        return target.lower()
+
+    return _PARTY_ROLE_RE.sub(_repl, text)
+
+
 def _control_us_swap(text: str) -> str:
     """Temoin : on change d'Etat americain (Delaware -> Ohio...) : un changement 'neutre', reste aux USA."""
     def state(m: "re.Match") -> str:
@@ -336,6 +374,7 @@ def make_perturbations() -> Dict[str, Any]:
     de = lambda t: _swap_jurisdiction(t, "the Federal Republic of Germany", "Germany")
     return {
         "control_US_swap": _control_us_swap,
+        "party_role_swap": _swap_party_roles,
         "juris_FR": fr,
         "juris_DE": de,
         "currency_EUR": _swap_currency,
@@ -437,7 +476,7 @@ def run_us_to_eu_counterfactual_audit(
 
 def compute_us_specific_and_cohort_baselines(
     outputs_dir: Path = OUTPUTS_DIR,
-    cohort_indices: Dict[str, List[int]] | None = None,
+    cohort_indices: Optional[Dict[str, List[int]]] = None,
 ) -> Dict[str, Any]:
     """
     Compute baseline accuracy and 95% Wilson CIs on US-specific statutory classes
@@ -875,9 +914,10 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
     if (audit_dir / "counterfactual_audit.json").exists():
         with open(audit_dir / "counterfactual_audit.json", encoding="utf-8") as f:
             cf = json.load(f)["results"]["variants"]
-        order = ["control_US_swap", "currency_EUR", "regulator_ESMA", "juris_DE", "juris_FR", "all_FR", "statute_GDPR"]
+        order = ["control_US_swap", "party_role_swap", "currency_EUR", "regulator_ESMA", "juris_DE", "juris_FR", "all_FR", "statute_GDPR"]
         labels = [
             f"US Control (Delaware->Ohio)\n(n={cf['control_US_swap']['n_changed']}, k={cf['control_US_swap']['flip_rate']['k']} flips)",
+            f"Party Swap (Lender<->Borrower)\n(n={cf['party_role_swap']['n_changed']}, k={cf['party_role_swap']['flip_rate']['k']} flips)",
             f"Currency ($ -> EUR)\n(n={cf['currency_EUR']['n_changed']}, k={cf['currency_EUR']['flip_rate']['k']} flip)",
             f"Regulator (SEC -> ESMA)\n(n={cf['regulator_ESMA']['n_changed']}, k={cf['regulator_ESMA']['flip_rate']['k']} flips)",
             f"German Law (-> Germany)\n(n={cf['juris_DE']['n_changed']}, k={cf['juris_DE']['flip_rate']['k']} flips)",
@@ -894,8 +934,8 @@ def generate_audit_and_retrieval_plots(outputs_dir: Path = OUTPUTS_DIR) -> None:
         d_lo = drops - np.array([100 * cf[k]["confidence_drop"]["ci_lower"] for k in order])
         d_hi = np.array([100 * cf[k]["confidence_drop"]["ci_upper"] for k in order]) - drops
 
-        fig, axes = plt.subplots(1, 2, figsize=(12.2, 4.9), sharey=True)
-        colors = ["#7f8c8d", "#2e8b57", "#2e8b57", "#e69f00", "#e69f00", "#d35400", "#c0392b"]
+        fig, axes = plt.subplots(1, 2, figsize=(12.2, 5.2), sharey=True)
+        colors = ["#7f8c8d", "#7f8c8d", "#2e8b57", "#2e8b57", "#e69f00", "#e69f00", "#d35400", "#c0392b"]
         axes[0].barh(y, flips, color=colors, alpha=0.88)
         axes[0].errorbar(flips, y, xerr=[f_lo, f_hi], fmt="none", ecolor="black", capsize=3, lw=1.1)
         axes[0].set_yticks(y)
@@ -969,17 +1009,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Audits de biais (personne 3)")
     parser.add_argument(
         "--audit",
-        choices=("long-tail", "length", "taxonomy", "counterfactual", "plots"),
+        choices=("long-tail", "length", "taxonomy", "counterfactual", "plots", "all"),
         required=True,
     )
     args = parser.parse_args()
-    if args.audit == "long-tail":
+    if args.audit in ("long-tail", "all"):
         _main_long_tail()
-    elif args.audit == "length":
+    if args.audit in ("length", "all"):
         _main_length()
-    elif args.audit == "taxonomy":
+    if args.audit in ("taxonomy", "all"):
         _main_taxonomy()
-    elif args.audit == "counterfactual":
+    if args.audit in ("counterfactual", "all"):
         _main_counterfactual()
-    elif args.audit == "plots":
+    if args.audit in ("plots", "all"):
         generate_audit_and_retrieval_plots()

@@ -25,7 +25,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import minimize_scalar
-from scipy.stats import norm
+from scipy.stats import binomtest, chi2, norm
 
 try:
     import pandas as pd
@@ -516,6 +516,7 @@ def conformal_prediction_sets(
     n_boot: int = 2000,
     confidence: float = 0.95,
     seed: int = 42,
+    per_class: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Split conformal prediction sets (score = 1 - p(true class), on temperature-scaled probabilities).
@@ -523,6 +524,8 @@ def conformal_prediction_sets(
     p >= 1 - q_hat, which covers the true class with probability >= 1 - alpha on average
     (marginal guarantee only: no guarantee for rare classes such as 'Books').
     Routing: 1 class = auto-tag, 2-3 classes = shortlist, 0 or 4+ classes = escalate.
+    When `per_class` is provided, also reports the effect of hard-blocking singletons predicted
+    in a Tier-3 (Red - Do Not Deploy) category.
     """
     val_labels = np.asarray(val_labels, dtype=np.int64)
     test_labels = np.asarray(test_labels, dtype=np.int64)
@@ -542,7 +545,8 @@ def conformal_prediction_sets(
     auto = (size == 1).astype(float)
     shortlist = ((size >= 2) & (size <= 3)).astype(float)
     escalate = 1.0 - auto - shortlist
-    auto_correct = auto * (test_probs.argmax(axis=1) == test_labels)
+    pred_top1 = test_probs.argmax(axis=1)
+    auto_correct = auto * (pred_top1 == test_labels)
 
     rng = np.random.default_rng(seed)
     idx = rng.integers(0, n, size=(n_boot, n))
@@ -566,7 +570,64 @@ def conformal_prediction_sets(
         auto_correct.sum() / max(n_auto, 1),
         auto_correct[idx].sum(axis=1) / np.maximum(auto_boot, 1),
     )
+    if per_class is not None:
+        cids = list(per_class["class_id"])
+        tiers = list(per_class["tier"])
+        tier3_ids = {int(c) for c, t in zip(cids, tiers) if str(t).startswith("Tier 3")}
+        is_t3_pred = np.isin(pred_top1, list(tier3_ids))
+        t3_singletons = (size == 1) & is_t3_pred
+        auto_gated = ((size == 1) & ~is_t3_pred).astype(float)
+        auto_gated_correct = auto_gated * (pred_top1 == test_labels)
+        n_auto_g = auto_gated.sum()
+        results["tier3_singletons_diverted"] = int(t3_singletons.sum())
+        results["share_auto_tag_tier_gated"] = float(auto_gated.mean())
+        results["auto_tag_accuracy_tier_gated"] = float(auto_gated_correct.sum() / max(n_auto_g, 1))
+        results["share_escalate_tier_gated"] = float(escalate.mean() + t3_singletons.mean())
     return results
+
+
+def mcnemar_test(
+    y_true: np.ndarray,
+    logits_a: np.ndarray,
+    logits_b: np.ndarray,
+    alpha: float = 0.05,
+) -> Dict[str, Any]:
+    """
+    McNemar's paired test on classification accuracy disagreements (Course Session 6, Slides 22-23):
+      - a: both A and B correct
+      - b: only A correct, B wrong
+      - c: A wrong, only B correct
+      - d: both A and B wrong
+    Only disagreements count: acc_A - acc_B = (b - c) / n.
+    Under H0, b ~ Binomial(b + c, 1/2), and chi2 = (|b - c| - 1)^2 / (b + c) ~ chi2(df=1)
+    with continuity correction (or exact binomial test when b + c < 25).
+    """
+    y_true = np.asarray(y_true, dtype=np.int64)
+    ok_a = logits_a.argmax(axis=1) == y_true
+    ok_b = logits_b.argmax(axis=1) == y_true
+    a = int((ok_a & ok_b).sum())
+    b = int((ok_a & ~ok_b).sum())
+    c = int((~ok_a & ok_b).sum())
+    d = int((~ok_a & ~ok_b).sum())
+    n_disagree = b + c
+    if n_disagree == 0:
+        chi2_stat, p_val = 0.0, 1.0
+    elif n_disagree < 25:
+        chi2_stat = float((abs(b - c) - 1.0) ** 2 / n_disagree)
+        p_val = float(binomtest(b, n_disagree, 0.5).pvalue)
+    else:
+        chi2_stat = float((abs(b - c) - 1.0) ** 2 / n_disagree)
+        p_val = float(chi2.sf(chi2_stat, df=1))
+    return {
+        "a_both_correct": a,
+        "b_only_a_correct": b,
+        "c_only_b_correct": c,
+        "d_both_wrong": d,
+        "n_disagreements": n_disagree,
+        "chi2": chi2_stat,
+        "p_value": p_val,
+        "significant": bool(p_val < alpha),
+    }
 
 
 def paired_bootstrap_difference(
@@ -580,6 +641,7 @@ def paired_bootstrap_difference(
     """
     Paired bootstrap of the metric difference (A - B): both models are scored on the SAME
     resampled test indices. A difference is significant when its CI excludes 0.
+    Also includes McNemar's test on accuracy disagreements (Course Session 6).
     """
     y_true = np.asarray(y_true, dtype=np.int64)
     n, num_classes = logits_a.shape
@@ -590,7 +652,12 @@ def paired_bootstrap_difference(
     full = np.arange(n)[None, :]
 
     a = (1 - confidence) / 2
-    results: Dict[str, Any] = {"n_test": int(n), "n_boot": n_boot, "confidence": confidence}
+    results: Dict[str, Any] = {
+        "n_test": int(n),
+        "n_boot": n_boot,
+        "confidence": confidence,
+        "mcnemar": mcnemar_test(y_true, logits_a, logits_b, alpha=1.0 - confidence),
+    }
     boot, point = [], []
     for y_pred in preds:
         _, mi_b, ma_b, we_b = _f1_micro_macro_weighted(*_class_counts(y_true, y_pred, idx, num_classes))
@@ -646,7 +713,7 @@ def run_evaluation(outputs_dir: Path = OUTPUTS_DIR, out_dir: Optional[Path] = No
             calibration.pop(f"reliability_bins_{tag}").to_csv(
                 out_dir / f"{name}_reliability_{tag}.csv", index=False
             )
-        conformal = conformal_prediction_sets(val_l, y_val, test_l, y_test)
+        conformal = conformal_prediction_sets(val_l, y_val, test_l, y_test, per_class=per_class)
         summary["models"][name] = {"global": global_res, "calibration": calibration, "conformal": conformal}
 
     for a, b in (("legal_bert", "tfidf"), ("ensemble", "tfidf"), ("ensemble", "legal_bert")):

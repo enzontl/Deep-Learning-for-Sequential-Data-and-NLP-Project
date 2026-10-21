@@ -116,14 +116,90 @@ def evaluate_logits(
     )
 
 
+class LoRALinear(nn.Module):
+    """
+    Low-Rank Adaptation layer (Hu et al., 2021; Course Session 6, Slides 18-20):
+        h = W x + (alpha / r) * B (A x)
+    where W in R^{d_out x d_in} is frozen, A in R^{r x d_in} is initialized ~ N(0, 0.02^2),
+    and B in R^{d_out x r} is initialized to 0 so that at step 0, B A = 0 and the model
+    outputs the exact pretrained representations.
+    """
+
+    def __init__(self, base_layer: nn.Linear, r: int = 8, alpha: float = 16.0):
+        super().__init__()
+        self.base_layer = base_layer
+        self.in_features = base_layer.in_features
+        self.out_features = base_layer.out_features
+        self.r = r
+        self.alpha = alpha
+        self.scaling = alpha / r
+
+        for p in self.base_layer.parameters():
+            p.requires_grad = False
+
+        self.lora_A = nn.Parameter(torch.randn(r, self.in_features, device=base_layer.weight.device) * 0.02)
+        self.lora_B = nn.Parameter(torch.zeros(self.out_features, r, device=base_layer.weight.device))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        base_out = self.base_layer(x)
+        lora_out = (x @ self.lora_A.T @ self.lora_B.T) * self.scaling
+        return base_out + lora_out
+
+    @torch.no_grad()
+    def merge_weights(self) -> nn.Linear:
+        """Merge W' = W + (alpha / r) B A for zero-overhead inference (Session 6, Slide 19)."""
+        self.base_layer.weight.data.add_((self.lora_B @ self.lora_A) * self.scaling)
+        return self.base_layer
+
+
+def apply_lora_to_bert(
+    model: nn.Module, r: int = 8, alpha: float = 16.0, target_names: Tuple[str, ...] = ("query", "value")
+) -> nn.Module:
+    """
+    Freeze the pretrained BERT body, inject LoRALinear into every attention (query, value)
+    projection (Course Session 6, Slide 20), and keep the classification head trainable.
+    """
+    for name, param in model.named_parameters():
+        param.requires_grad = "classifier" in name
+
+    for module in model.modules():
+        for attr in target_names:
+            if hasattr(module, attr) and isinstance(getattr(module, attr), nn.Linear):
+                setattr(module, attr, LoRALinear(getattr(module, attr), r=r, alpha=alpha))
+    return model
+
+
+def count_parameters_and_memory(model: nn.Module) -> Dict[str, Any]:
+    """
+    Count total and trainable parameters and estimate optimizer + weight + gradient memory
+    using Course Session 6 (Slides 16-17):
+      - Trained parameter (fp32): 16 bytes (4B weight + 4B grad + 4B Adam m + 4B Adam v)
+      - Frozen parameter (fp16):   2 bytes (weight only, no grad, no Adam states)
+    """
+    total = sum(p.numel() for p in model.parameters())
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    frozen = total - trainable
+    mem_bytes = trainable * 16 + frozen * 2
+    return {
+        "total_params": int(total),
+        "trainable_params": int(trainable),
+        "frozen_params": int(frozen),
+        "trainable_pct": round(100.0 * trainable / max(1, total), 4),
+        "estimated_param_grad_opt_mb": round(mem_bytes / 1e6, 2),
+    }
+
+
 def fine_tune_transformer(
     model_name: str = "nlpaueb/legal-bert-base-uncased",
     epochs: int = 3,
-    batch_size: int = 32,
+    batch_size: int = 64,
     lr: float = 3e-5,
     max_length: int = 256,
     seed: int = 42,
     use_class_weights: bool = False,
+    use_lora: bool = False,
+    lora_r: int = 8,
+    lora_alpha: float = 16.0,
     run_tfidf: bool = True,
 ) -> Dict[str, Any]:
     """
@@ -161,6 +237,10 @@ def fine_tune_transformer(
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name, num_labels=num_classes
     ).to(device)
+    if use_lora:
+        apply_lora_to_bert(model, r=lora_r, alpha=lora_alpha)
+    param_stats = count_parameters_and_memory(model)
+    print(f"Model parameter & memory accounting: {param_stats}")
     collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
     train_loader = DataLoader(
@@ -182,7 +262,8 @@ def fine_tune_transformer(
         collate_fn=collator,
     )
 
-    optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.01)
+    trainable_params = [p for p in model.parameters() if p.requires_grad]
+    optimizer = AdamW(trainable_params, lr=lr, weight_decay=0.01)
     total_steps = len(train_loader) * epochs
     scheduler = get_cosine_schedule_with_warmup(
         optimizer, num_warmup_steps=int(0.1 * total_steps), num_training_steps=total_steps
@@ -280,6 +361,8 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=3e-5)
     parser.add_argument("--max-length", type=int, default=256)
     parser.add_argument("--class-weights", action="store_true", help="Use inverse-sqrt class weights in CrossEntropyLoss")
+    parser.add_argument("--lora", action="store_true", help="Use Low-Rank Adaptation (LoRA) on attention query/value projections")
+    parser.add_argument("--lora-r", type=int, default=8)
     args = parser.parse_args()
     fine_tune_transformer(
         model_name=args.model_name,
@@ -288,4 +371,6 @@ if __name__ == "__main__":
         lr=args.lr,
         max_length=args.max_length,
         use_class_weights=args.class_weights,
+        use_lora=args.lora,
+        lora_r=args.lora_r,
     )

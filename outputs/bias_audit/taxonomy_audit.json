@@ -520,19 +520,19 @@
         "pair": "Tax Withholdings / Withholdings",
         "true": "Tax Withholdings",
         "predicted": "Withholdings",
-        "text_start": "The Company shall have the right to deduct applicable taxes from any Grant payment and withhold, at the time of delivery or exercise of Options, Stock Awards or Restricted Stock Purchase Offers or vesting of shares under"
+        "text_start": "Notwithstanding anything herein to the contrary, Buyer or, if applicable, the Company, shall be entitled to deduct and withhold from the consideration otherwise payable pursuant to this Agreement to any Person such amoun"
       },
       {
         "pair": "Tax Withholdings / Withholdings",
         "true": "Tax Withholdings",
         "predicted": "Withholdings",
-        "text_start": "Employee must pay, or make arrangements acceptable to the Company for the payment of any and all federal, state and local tax withholding that in the opinion of the Company is required by law. Unless Employee satisfies a"
+        "text_start": "The Recipient acknowledges and agrees that the Company may require the Recipient to pay, or may withhold from sums owed by the Company to the Recipient, any amount necessary to comply with the minimum applicable withhold"
       },
       {
         "pair": "Tax Withholdings / Withholdings",
         "true": "Tax Withholdings",
         "predicted": "Withholdings",
-        "text_start": "The Company will withhold all applicable taxes from any Actual Award, including any federal, state and local taxes (including, but not limited to, the Participant’s FICA and SDI obligations)."
+        "text_start": "The Company will withhold from the number of shares of Common Stock otherwise issuable hereunder (including with respect to dividend equivalents) a number of shares necessary to satisfy any and all applicable federal, st"
       },
       {
         "pair": "No Waivers / Waivers",
@@ -571,10 +571,10 @@
         },
         "share_with_both_keywords_correct": {
           "n": 594,
-          "k": 186,
-          "p": 0.31313131313131315,
-          "ci_lower": 0.27713730029284367,
-          "ci_upper": 0.351526793298259
+          "k": 187,
+          "p": 0.3148148148148148,
+          "ci_lower": 0.27875626840741863,
+          "ci_upper": 0.3532531937098903
         }
       },
       {
@@ -594,10 +594,10 @@
         },
         "share_with_both_keywords_correct": {
           "n": 351,
-          "k": 44,
-          "p": 0.12535612535612536,
-          "ci_lower": 0.09472166354533049,
-          "ci_upper": 0.16410226059793817
+          "k": 46,
+          "p": 0.13105413105413105,
+          "ci_lower": 0.09971007158356576,
+          "ci_upper": 0.17038649249668741
         }
       }
     ]

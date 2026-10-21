@@ -27,9 +27,9 @@
           "ci_upper": 0.8797053739686851
         },
         "confidence_drop": {
-          "estimate": 0.016559352909309277,
-          "ci_lower": 0.014285024356641033,
-          "ci_upper": 0.01881570953402332
+          "estimate": 0.01655935056698628,
+          "ci_lower": 0.014285020735592414,
+          "ci_upper": 0.018815707369035768
         },
         "mean_confidence_original": 0.8019611239433289,
         "top_flips": [
@@ -69,6 +69,90 @@
             "ci_lower": 0.0,
             "ci_upper": 0.6576197724933469
           }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.010001614357582568,
+          "ci_lower": 0.007697770516974738,
+          "ci_upper": 0.012260823286114594
+        }
+      },
+      "party_role_swap": {
+        "n_changed": 2612,
+        "share_changed": 0.2612,
+        "flip_rate": {
+          "k": 48,
+          "n": 2612,
+          "p": 0.018376722817764167,
+          "ci_lower": 0.013888698085715087,
+          "ci_upper": 0.02427931033238908
+        },
+        "accuracy_original": {
+          "k": 2257,
+          "n": 2612,
+          "p": 0.8640888208269525,
+          "ci_lower": 0.8504107100856675,
+          "ci_upper": 0.8766975760783888
+        },
+        "accuracy_perturbed": {
+          "k": 2242,
+          "n": 2612,
+          "p": 0.8583460949464012,
+          "ci_lower": 0.8444469874677175,
+          "ci_upper": 0.8711927137410699
+        },
+        "confidence_drop": {
+          "estimate": 0.012238530092694402,
+          "ci_lower": 0.010889107503594508,
+          "ci_upper": 0.013554599261942503
+        },
+        "mean_confidence_original": 0.7397615313529968,
+        "top_flips": [
+          {
+            "from": "Tax Withholdings",
+            "to": "Withholdings",
+            "count": 3
+          },
+          {
+            "from": "Participations",
+            "to": "General",
+            "count": 3
+          },
+          {
+            "from": "Duties",
+            "to": "Positions",
+            "count": 2
+          },
+          {
+            "from": "Duties",
+            "to": "Employment",
+            "count": 2
+          },
+          {
+            "from": "Employment",
+            "to": "General",
+            "count": 2
+          }
+        ],
+        "us_specific_classes": {
+          "Erisa": {
+            "n_changed": 37,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.09405782583720251
+          },
+          "Waiver Of Jury Trials": {
+            "n_changed": 19,
+            "n_flips": 0,
+            "p": 0.0,
+            "ci_lower": 0.0,
+            "ci_upper": 0.16817922405261626
+          }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.006300609915376075,
+          "ci_lower": 0.00491745814454284,
+          "ci_upper": 0.007653989566698282
         }
       },
       "juris_FR": {
@@ -96,9 +180,9 @@
           "ci_upper": 0.8729449059415758
         },
         "confidence_drop": {
-          "estimate": 0.04799542281308461,
-          "ci_lower": 0.043700949684233284,
-          "ci_upper": 0.05224834719479409
+          "estimate": 0.04799542212909688,
+          "ci_lower": 0.04370094921012394,
+          "ci_upper": 0.05224834631232778
         },
         "mean_confidence_original": 0.8009767532348633,
         "top_flips": [
@@ -143,6 +227,11 @@
             "ci_lower": 0.0,
             "ci_upper": 0.6576197724933469
           }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.021184415626721305,
+          "ci_lower": 0.017444473758462024,
+          "ci_upper": 0.02468389861855676
         }
       },
       "juris_DE": {
@@ -170,9 +259,9 @@
           "ci_upper": 0.877017312593023
         },
         "confidence_drop": {
-          "estimate": 0.048291033058544326,
-          "ci_lower": 0.04422921523512875,
-          "ci_upper": 0.05222779870827178
+          "estimate": 0.04829103221984509,
+          "ci_lower": 0.04422921466697109,
+          "ci_upper": 0.05222779616693168
         },
         "mean_confidence_original": 0.8009767532348633,
         "top_flips": [
@@ -217,6 +306,11 @@
             "ci_lower": 0.0,
             "ci_upper": 0.6576197724933469
           }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.022536125282446542,
+          "ci_lower": 0.01891620793812425,
+          "ci_upper": 0.025857531426912116
         }
       },
       "currency_EUR": {
@@ -244,9 +338,9 @@
           "ci_upper": 0.93682406986952
         },
         "confidence_drop": {
-          "estimate": 0.002055148851681263,
-          "ci_lower": 0.0004939649278852857,
-          "ci_upper": 0.004064447252931905
+          "estimate": 0.0020551492083579937,
+          "ci_lower": 0.0004939629770617225,
+          "ci_upper": 0.0040644474847717806
         },
         "mean_confidence_original": 0.8057544231414795,
         "top_flips": [
@@ -271,6 +365,11 @@
             "ci_lower": 0.0,
             "ci_upper": 1.0
           }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.0009087096463809622,
+          "ci_lower": -0.0003051705782281905,
+          "ci_upper": 0.0025091935261251745
         }
       },
       "regulator_ESMA": {
@@ -298,9 +397,9 @@
           "ci_upper": 0.9699380218803675
         },
         "confidence_drop": {
-          "estimate": 0.004322998811426402,
-          "ci_lower": 0.0024403963741735095,
-          "ci_upper": 0.006449722923314983
+          "estimate": 0.004323000123478331,
+          "ci_lower": 0.00244039821338916,
+          "ci_upper": 0.006449723321616462
         },
         "mean_confidence_original": 0.8606625199317932,
         "top_flips": [],
@@ -319,6 +418,11 @@
             "ci_lower": 0.0,
             "ci_upper": 1.0
           }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.002862555425871843,
+          "ci_lower": 0.0008061927257093996,
+          "ci_upper": 0.005290105179795677
         }
       },
       "all_FR": {
@@ -346,9 +450,9 @@
           "ci_upper": 0.8926700916784805
         },
         "confidence_drop": {
-          "estimate": 0.03161708752296943,
-          "ci_lower": 0.028619993237927816,
-          "ci_upper": 0.03468125724950838
+          "estimate": 0.0316170870764538,
+          "ci_lower": 0.028619992409277876,
+          "ci_upper": 0.03468125737230018
         },
         "mean_confidence_original": 0.8087725639343262,
         "top_flips": [
@@ -394,12 +498,10 @@
             "ci_upper": 0.6576197724933469
           }
         },
-        "flip_rate_on_juris_cohort": {
-          "k": 23,
-          "n": 915,
-          "p": 0.025136612021857924,
-          "ci_lower": 0.01680735072039896,
-          "ci_upper": 0.037436456350152865
+        "confidence_drop_calibrated": {
+          "estimate": 0.01405817061558833,
+          "ci_lower": 0.011544993763679203,
+          "ci_upper": 0.016525522035251303
         }
       },
       "all_DE": {
@@ -427,9 +529,9 @@
           "ci_upper": 0.8952844448982402
         },
         "confidence_drop": {
-          "estimate": 0.031805649911173545,
-          "ci_lower": 0.02892572213301779,
-          "ci_upper": 0.03473049367028402
+          "estimate": 0.031805649334856856,
+          "ci_lower": 0.02892572298009948,
+          "ci_upper": 0.03473049340652827
         },
         "mean_confidence_original": 0.8087725639343262,
         "top_flips": [
@@ -475,12 +577,10 @@
             "ci_upper": 0.6576197724933469
           }
         },
-        "flip_rate_on_juris_cohort": {
-          "k": 19,
-          "n": 915,
-          "p": 0.020765027322404372,
-          "ci_lower": 0.013333275325369197,
-          "ci_upper": 0.032203915469652615
+        "confidence_drop_calibrated": {
+          "estimate": 0.014919996406973862,
+          "ci_lower": 0.012561693360788898,
+          "ci_upper": 0.01725256815981055
         }
       },
       "statute_GDPR": {
@@ -508,9 +608,9 @@
           "ci_upper": 0.9101391934638322
         },
         "confidence_drop": {
-          "estimate": 0.18867710962107306,
-          "ci_lower": 0.1392253272568709,
-          "ci_upper": 0.23707836707759838
+          "estimate": 0.18867710515072472,
+          "ci_lower": 0.1392253267294482,
+          "ci_upper": 0.23707836022110354
         },
         "mean_confidence_original": 0.8222878575325012,
         "top_flips": [
@@ -545,6 +645,11 @@
             "ci_lower": 0.0,
             "ci_upper": 1.0
           }
+        },
+        "confidence_drop_calibrated": {
+          "estimate": 0.11707434952259063,
+          "ci_lower": 0.07372001140525467,
+          "ci_upper": 0.15955048693638096
         }
       }
     }
@@ -629,6 +734,32 @@
           "accuracy": 0.867335562987737,
           "ci_lower": 0.8435627453910226,
           "ci_upper": 0.8879755220225438
+        }
+      }
+    },
+    "party_role_swap": {
+      "n": 2612,
+      "models": {
+        "Legal-BERT": {
+          "k": 2266,
+          "n": 2612,
+          "accuracy": 0.8675344563552833,
+          "ci_lower": 0.8539926716840064,
+          "ci_upper": 0.8799967654532114
+        },
+        "TF-IDF": {
+          "k": 2256,
+          "n": 2612,
+          "accuracy": 0.8637059724349158,
+          "ci_lower": 0.8500128897914399,
+          "ci_upper": 0.8763308240422654
+        },
+        "Ensemble": {
+          "k": 2298,
+          "n": 2612,
+          "accuracy": 0.8797856049004594,
+          "ci_lower": 0.8667527911328043,
+          "ci_upper": 0.8917029605756541
         }
       }
     },
