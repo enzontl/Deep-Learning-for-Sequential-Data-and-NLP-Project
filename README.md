@@ -32,10 +32,6 @@ All experiments are conducted on the **LEDGAR** benchmark (`coastalcph/lex_glue`
 ├── uv.lock                          # Deterministic lockfile for reproducible environments
 ├── requirements.txt                 # Pinned dependencies for standard pip installations
 ├── train_colab_pro.ipynb            # End-to-end GPU training notebook (Legal-BERT + TF-IDF)
-├── slide/
-│   ├── deck.html                    # Self-contained interactive 1080p60 presentation deck
-│   ├── deck.mp4                     # Master 1080p60 video animation of the presentation
-│   └── presentation_script.md       # Step-by-step speaker script (#0 to #39) & jury Q&A guide
 ├── presentation/
 │   ├── deck.html                    # Self-contained interactive 1080p60 presentation deck
 │   ├── deck.mp4                     # Master 1080p60 video animation of the presentation
@@ -75,10 +71,10 @@ Before fine-tuning, `src/data.py` audits three candidate tokenizers on `n = 2,00
 | `bert-base-uncased` | WordPiece (`##`, 30,522 vocab) — English Wikipedia/Books | 1.257 | 109.5 | 13.8% | 1.6% |
 | `camembert-base` | SentencePiece Unigram (`▁`, 32,005 vocab) — French Oscar | 1.924 | 169.0 | 28.4% | 7.2% |
 
-- **Why `AutoTokenizer` Alignment Matters (Course Session 3 & 4):** Because `camembert-base` is trained on French, its SentencePiece Unigram vocabulary over-fragments English legal terminology by **+60%** (`1.924` vs. `1.200` subwords per word), causing **28.4%** of clauses to be truncated at our 256-token window. Even against general English `bert-base-uncased` (`1.257` tokens/word, e.g. `indemnification` $\rightarrow$ `ind`, `##em`, `##ni`, `##fication`), domain-specific `legal-bert-base-uncased` keeps legal compounds intact (`1.200` tokens/word) and cuts 256-token truncation from `13.8%` to `12.2%`.
-- **Dynamic Batch Padding (`DataCollatorWithPadding`, Session 3 & 5):** Rather than padding every clause statically to `max_length = 256`, batches are padded dynamically to the longest sequence in the mini-batch with binary `attention_mask` ($\text{score}_{ij} = -\infty \implies \text{softmax} = 0$ on `[PAD]` positions).
+- **Why `AutoTokenizer` Alignment Matters:** Because `camembert-base` is trained on French, its SentencePiece Unigram vocabulary over-fragments English legal terminology by **+60%** (`1.924` vs. `1.200` subwords per word), causing **28.4%** of clauses to be truncated at our 256-token window. Even against general English `bert-base-uncased` (`1.257` tokens/word, e.g. `indemnification` $\rightarrow$ `ind`, `##em`, `##ni`, `##fication`), domain-specific `legal-bert-base-uncased` keeps legal compounds intact (`1.200` tokens/word) and cuts 256-token truncation from `13.8%` to `12.2%`.
+- **Dynamic Batch Padding (`DataCollatorWithPadding`):** Rather than padding every clause statically to `max_length = 256`, batches are padded dynamically to the longest sequence in the mini-batch with binary `attention_mask` ($\text{score}_{ij} = -\infty \implies \text{softmax} = 0$ on `[PAD]` positions).
 - **Fine-Tuning Protocol (`outputs/training_history.json`):** We fine-tune `nlpaueb/legal-bert-base-uncased` for **3 epochs** (`batch_size = 64`, `938` steps/epoch, `2,814` total steps, `AdamW` with $\text{lr} = 3\times 10^{-5}$, weight decay $0.01$, 10% linear warmup = `281` steps + cosine decay, `fp16` mixed precision, gradient clipping `1.0`). Total training time across 3 passes over the 60,000 clauses is **2,456.1s (~41 min on one GPU)**, with validation accuracy progressing `82.69% -> 85.37% -> 86.12%` (val loss `0.6722 -> 0.5467 -> 0.5220`), alongside a full-text **`TF-IDF + Logistic Regression`** baseline (`50,000` unigram/bigram features, `sublinear_tf=True`, `min_df=2`, `C=2.0`, trained in `19.2s`).
-- **Parameter & GPU Memory Accounting + LoRA (`src/train.py --lora`, Session 3, 5 & 6):**
+- **Parameter & GPU Memory Accounting + LoRA (`src/train.py --lora`):**
   - `Legal-BERT` totals **109,559,140 parameters**: Embeddings = `23.84M` (`21.8%`), 12 Transformer Encoder blocks = `85.05M` (`77.6%`, with `1/3` in Multi-Head Self-Attention `2.36M`/layer and `2/3` in Position-Wise FFN `4.72M`/layer), and the 100-class linear head = `76.9K` (`0.07%`).
   - Under standard `fp32` `AdamW` training (**16 bytes/parameter**: 4B weight + 4B gradient + 4B first moment $m$ + 4B second moment $v$), model states alone require **1.75 GB** before counting $O(B \cdot T^2)$ self-attention activations.
   - `src/train.py` also implements **`LoRALinear`** ($h = Wx + \frac{\alpha}{r}BAx$ with $A \sim \mathcal{N}(0, 0.02^2)$ and $B = 0$ on all $W_Q, W_V$ projections, $r=8, \alpha=16$), reducing trainable parameters to **371,812 (`0.34%` of total, a $295\times$ reduction)** and weight+grad+optimizer memory to **222 MB** (`2B/param` frozen `fp16` + `16B/param` on LoRA adapters), with zero latency overhead at inference via `merge_weights()`.
@@ -93,7 +89,7 @@ All global metrics on the `10,000`-clause test set are computed with **2,000 non
 | **TF-IDF + Logistic Regression** | 86.41% `[85.71%, 87.08%]` | 79.69% `[78.37%, 80.68%]` | 85.73% `[84.95%, 86.44%]` | 96.16% `[95.77%, 96.54%]` | `44 / 41 / 15` |
 | **Calibrated Ensemble ($0.45\text{ LB} + 0.55\text{ TF}$)** | **87.77%** `[87.12%, 88.40%]` | **80.62%** `[79.00%, 81.76%]` | **87.04%** `[86.30%, 87.71%]` | **96.61%** `[96.25%, 96.96%]` | **`52 / 33 / 15`** |
 
-- **Paired Bootstrap & McNemar's Contingency Test (Course Session 6, Slides 22–24):**
+- **Paired Bootstrap & McNemar's Contingency Test:**
   - **`Legal-BERT` vs. `TF-IDF`:** On Accuracy/Micro-F1, the difference is `-0.43 pts` `[-0.97%, +0.12%]` (not statistically significant). McNemar's $2\times 2$ contingency table reveals why ensembling is so effective: $a = 8,228$ clauses are solved by both, **$b = 370$ are solved only by Legal-BERT** (semantic paraphrases), **$c = 413$ are solved only by TF-IDF** (rare statutory n-grams and long clauses), and $d = 989$ are missed by both ($\chi^2 = \frac{(|370-413|-1)^2}{370+413} = 2.25 < 3.84$, $p = 0.133$). Those **783 complementary disagreements (`7.8%` of the test set)** allow the soft-voting ensemble to outperform both models.
   - **`Ensemble` vs. `Legal-BERT`:** Statistically significant gains of **+1.79 pts on Accuracy** `[+1.38%, +2.21%]` (McNemar $b=307$ vs. $c=128$, $\chi^2 = 72.84$, $p = 1.41 \times 10^{-17}$) and **+4.73 pts on Macro-F1** `[+3.38%, +5.67%]`.
   - **`Ensemble` vs. `TF-IDF`:** Statistically significant gain of **+1.36 pts on Accuracy** `[+0.99%, +1.73%]` (McNemar $b=249$ vs. $c=113$, $\chi^2 = 50.35$, $p = 1.29 \times 10^{-12}$) and **+1.30 pts on Weighted-F1** `[+0.92%, +1.70%]`. On **Macro-F1**, the **+0.94 pt gain** `[-0.08%, +1.75%]` slightly crosses zero due to high bootstrap variance on ultra-rare classes and is reported transparently as statistically non-significant.
@@ -101,10 +97,10 @@ All global metrics on the `10,000`-clause test set are computed with **2,000 non
 ### 4.3 Probability Calibration & Split Conformal Routing (`src/evaluation.py`)
 
 To ensure predicted probabilities reflect true empirical accuracy before routing clauses to humans:
-1. **Temperature Scaling on Validation ($p_i = \text{softmax}(z / T)_i$, Course Session 7 Slide 13):**
+1. **Temperature Scaling on Validation ($p_i = \text{softmax}(z / T)_i$):**
    - Raw `TF-IDF + Logistic Regression` probabilities are severely **under-confident** (**ECE = 10.99%** `[10.36%, 11.61%]`, NLL = `0.618`; e.g., in the `0.63` confidence bin, empirical accuracy is already `84.0%`). Fitting a single temperature $T = 0.684 < 1$ on validation sharpens its distribution and cuts test ECE **4.1× to 2.70%** `[2.33%, 3.36%]` ($\Delta\text{ECE} = -8.29\text{ pts}$, statistically significant).
    - `Legal-BERT` is already well-calibrated before scaling (**ECE = 1.26%** `[1.02%, 1.98%]`; after $T=0.964$, ECE = **1.74%**, $\Delta = +0.48\text{ pts}$, non-significant), and the `Calibrated Ensemble` goes from **2.17%** to **1.97%** ($T=0.917$, $\Delta = -0.20\text{ pts}$, non-significant).
-2. **Split Conformal Prediction ($\alpha = 0.05$) — Adaptive Set Sizes Like Top-$p$ Nucleus Sampling (Session 7 Slide 15):**
+2. **Split Conformal Prediction ($\alpha = 0.05$) — Adaptive Set Sizes Like Top-$p$ Nucleus Sampling:**
    - Just as Top-$p$ nucleus sampling adapts candidate set size dynamically vs. fixed Top-$k$, Split Conformal Prediction uses validation non-conformity scores $s_i = 1 - \hat{p}(y_i \mid x_i)$ to calibrate $\hat{q}_{0.95} = 0.9477$ and outputs variable-size sets $C(x) = \{y : \hat{p}(y \mid x) \ge 1 - \hat{q}_{0.95}\}$:
    - **Marginal Test Coverage:** **95.01%** `[94.56%, 95.43%]` (mean set size **1.43 labels**). Note that split conformal guarantees **marginal coverage** ($\mathbb{P}(Y \in C(X)) \ge 1 - \alpha$ on average), not class-conditional coverage on rare classes.
    - **Pure Conformal Routing:**
@@ -148,7 +144,7 @@ To ensure predicted probabilities reflect true empirical accuracy before routing
 
 ---
 
-## 5. Model Card & Deployment Boundaries (Course Session 3 & 7)
+## 5. Model Card & Deployment Boundaries
 
 ### 5.1 Model Card Summary
 - **Model Architecture:** Calibrated Soft-Voting Ensemble ($0.45 \times \text{Legal-BERT}_{\text{base}} (T=0.964) + 0.55 \times \text{TF-IDF}_{\text{50k, (1,2)-gram}} (T=0.684)$) + Split Conformal Predictor ($\alpha = 0.05, \hat{q} = 0.9477$) + Hybrid RRF Clause Retriever (`all-MiniLM-L6-v2` + `SparseBM25`).
@@ -205,6 +201,6 @@ python -m src.bias_audit --audit all
 
 ## 7. Presentation Deck & Speaker Script
 
-The defence presentation and its synchronized step-by-step speaker script (`#0` to `#39`) are located in [`slide/`](slide/) (and mirrored in [`presentation/`](presentation/)):
-1. [`slide/deck.html`](slide/deck.html) (with [`slide/deck.mp4`](slide/deck.mp4)): Self-contained 1080p60 animated presentation deck (`Space` / `→` to advance, `←` to go back, `F` for fullscreen, `R` to reset).
-2. [`slide/presentation_script.md`](slide/presentation_script.md): Step-by-step spoken script synchronized to every `[PRESS →]` stop (`#0`–`#39`), plus a Jury Q&A quick-reference table.
+The defence presentation and its synchronized step-by-step speaker script (`#0` to `#39`) are located in [`presentation/`](presentation/):
+1. [`presentation/deck.html`](presentation/deck.html) (with [`presentation/deck.mp4`](presentation/deck.mp4)): Self-contained 1080p60 animated presentation deck (`Space` / `→` to advance, `←` to go back, `F` for fullscreen, `R` to reset).
+2. [`presentation/presentation_script.md`](presentation/presentation_script.md): Step-by-step spoken script synchronized to every `[PRESS →]` stop (`#0`–`#39`), plus a Jury Q&A quick-reference table.

@@ -593,7 +593,7 @@ def mcnemar_test(
     alpha: float = 0.05,
 ) -> Dict[str, Any]:
     """
-    McNemar's paired test on classification accuracy disagreements (Course Session 6, Slides 22-23):
+    McNemar's paired test on classification accuracy disagreements:
       - a: both A and B correct
       - b: only A correct, B wrong
       - c: A wrong, only B correct
@@ -641,7 +641,7 @@ def paired_bootstrap_difference(
     """
     Paired bootstrap of the metric difference (A - B): both models are scored on the SAME
     resampled test indices. A difference is significant when its CI excludes 0.
-    Also includes McNemar's test on accuracy disagreements (Course Session 6).
+    Also includes McNemar's test on accuracy disagreements.
     """
     y_true = np.asarray(y_true, dtype=np.int64)
     n, num_classes = logits_a.shape

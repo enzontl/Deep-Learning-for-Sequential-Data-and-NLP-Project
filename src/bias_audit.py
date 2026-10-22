@@ -339,7 +339,7 @@ _PARTY_ROLE_RE = re.compile(
 
 
 def _swap_party_roles(text: str) -> str:
-    """Counterfactual party/role symmetry test (Session 7 Slide 24): swap symmetric contractual party roles."""
+    """Counterfactual party/role symmetry test: swap symmetric contractual party roles."""
     def _repl(m: "re.Match") -> str:
         word = m.group(0)
         target = _PARTY_ROLE_SWAP_MAP[word.lower()]

@@ -118,7 +118,7 @@ def evaluate_logits(
 
 class LoRALinear(nn.Module):
     """
-    Low-Rank Adaptation layer (Hu et al., 2021; Course Session 6, Slides 18-20):
+    Low-Rank Adaptation layer (Hu et al., 2021):
         h = W x + (alpha / r) * B (A x)
     where W in R^{d_out x d_in} is frozen, A in R^{r x d_in} is initialized ~ N(0, 0.02^2),
     and B in R^{d_out x r} is initialized to 0 so that at step 0, B A = 0 and the model
@@ -147,7 +147,7 @@ class LoRALinear(nn.Module):
 
     @torch.no_grad()
     def merge_weights(self) -> nn.Linear:
-        """Merge W' = W + (alpha / r) B A for zero-overhead inference (Session 6, Slide 19)."""
+        """Merge W' = W + (alpha / r) B A for zero-overhead inference."""
         self.base_layer.weight.data.add_((self.lora_B @ self.lora_A) * self.scaling)
         return self.base_layer
 
@@ -157,7 +157,7 @@ def apply_lora_to_bert(
 ) -> nn.Module:
     """
     Freeze the pretrained BERT body, inject LoRALinear into every attention (query, value)
-    projection (Course Session 6, Slide 20), and keep the classification head trainable.
+    projection, and keep the classification head trainable.
     """
     for name, param in model.named_parameters():
         param.requires_grad = "classifier" in name
@@ -171,8 +171,7 @@ def apply_lora_to_bert(
 
 def count_parameters_and_memory(model: nn.Module) -> Dict[str, Any]:
     """
-    Count total and trainable parameters and estimate optimizer + weight + gradient memory
-    using Course Session 6 (Slides 16-17):
+    Count total and trainable parameters and estimate optimizer + weight + gradient memory:
       - Trained parameter (fp32): 16 bytes (4B weight + 4B grad + 4B Adam m + 4B Adam v)
       - Frozen parameter (fp16):   2 bytes (weight only, no grad, no Adam states)
     """
