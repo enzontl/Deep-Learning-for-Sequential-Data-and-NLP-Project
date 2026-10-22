@@ -280,6 +280,7 @@ def fine_tune_transformer(
 
     best_val_acc = -1.0
     best_val_logits: Optional[np.ndarray] = None
+    best_state_dict: Optional[Dict[str, torch.Tensor]] = None
     history: List[Dict[str, Any]] = []
 
     for epoch in range(1, epochs + 1):
@@ -297,7 +298,7 @@ def fine_tune_transformer(
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
             scale_before = scaler.get_scale()
             scaler.step(optimizer)
             scaler.update()
@@ -324,19 +325,27 @@ def fine_tune_transformer(
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             best_val_logits = val_logits
-            model.save_pretrained(OUTPUTS_DIR / "best_model")
-            tokenizer.save_pretrained(OUTPUTS_DIR / "best_model")
+            best_state_dict = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            if not use_lora:
+                model.save_pretrained(OUTPUTS_DIR / "best_model")
+                tokenizer.save_pretrained(OUTPUTS_DIR / "best_model")
 
-    best_model = AutoModelForSequenceClassification.from_pretrained(OUTPUTS_DIR / "best_model").to(device)
-    test_logits, _, test_loss = evaluate_logits(best_model, test_loader, device)
+    if best_state_dict is not None:
+        model.load_state_dict({k: v.to(device) for k, v in best_state_dict.items()})
+    test_logits, _, test_loss = evaluate_logits(model, test_loader, device)
     test_acc = float(np.mean(np.argmax(test_logits, axis=1) == test_labels))
 
-    # Save logits using the canonical filenames expected by evaluation.py and bias_audit.py
-    np.save(OUTPUTS_DIR / "legal_bert_val_logits.npy", best_val_logits)
-    np.save(OUTPUTS_DIR / "legal_bert_test_logits.npy", test_logits)
+    prefix = "lora" if use_lora else "legal_bert"
+    hist_name = "lora_training_history.json" if use_lora else "training_history.json"
+    np.save(OUTPUTS_DIR / f"{prefix}_val_logits.npy", best_val_logits)
+    np.save(OUTPUTS_DIR / f"{prefix}_test_logits.npy", test_logits)
 
     summary = {
         "model_name": model_name,
+        "use_lora": use_lora,
+        "lora_r": lora_r if use_lora else None,
+        "lora_alpha": lora_alpha if use_lora else None,
+        "param_stats": param_stats,
         "epochs": epochs,
         "batch_size": batch_size,
         "lr": lr,
@@ -347,7 +356,7 @@ def fine_tune_transformer(
         "test_loss": round(test_loss, 4),
         "epochs_log": history,
     }
-    with open(OUTPUTS_DIR / "training_history.json", "w", encoding="utf-8") as f:
+    with open(OUTPUTS_DIR / hist_name, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2)
     return summary
 

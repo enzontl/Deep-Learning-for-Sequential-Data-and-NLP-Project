@@ -1,0 +1,80 @@
+{
+  "model": "nlpaueb/legal-bert-base-uncased",
+  "method": "LoRA (query, value + classifier head)",
+  "r": 8,
+  "alpha": 16.0,
+  "lr": 0.0008,
+  "epochs": 3,
+  "param_stats": {
+    "total_params": 109854052,
+    "trainable_params": 371812,
+    "frozen_params": 109482240,
+    "trainable_pct": 0.3385,
+    "estimated_param_grad_opt_mb": 224.91
+  },
+  "test_accuracy": 0.8473,
+  "test_accuracy_ci": [
+    0.8397,
+    0.8542
+  ],
+  "test_macro_f1": 0.7539,
+  "test_weighted_f1": 0.837,
+  "test_loss": 0.5374,
+  "total_elapsed_sec": 491.4,
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 1.5338,
+      "val_loss": 0.665,
+      "val_accuracy": 0.8125,
+      "val_macro_f1": 0.6975,
+      "elapsed_sec": 173.1
+    },
+    {
+      "epoch": 2,
+      "train_loss": 0.5991,
+      "val_loss": 0.5494,
+      "val_accuracy": 0.8385,
+      "val_macro_f1": 0.7329,
+      "elapsed_sec": 158.8
+    },
+    {
+      "epoch": 3,
+      "train_loss": 0.4886,
+      "val_loss": 0.525,
+      "val_accuracy": 0.8493,
+      "val_macro_f1": 0.7523,
+      "elapsed_sec": 159.5
+    }
+  ],
+  "bootstrap_test_metrics": {
+    "n_test": 10000,
+    "n_boot": 2000,
+    "confidence": 0.95,
+    "micro_f1": {
+      "estimate": 0.8473,
+      "ci_lower": 0.8397,
+      "ci_upper": 0.8542025
+    },
+    "macro_f1": {
+      "estimate": 0.7539332465858516,
+      "ci_lower": 0.7385558975260961,
+      "ci_upper": 0.7646908597288308
+    },
+    "weighted_f1": {
+      "estimate": 0.8369898095386279,
+      "ci_lower": 0.8285522828206235,
+      "ci_upper": 0.8444250157596738
+    },
+    "top3_accuracy": {
+      "estimate": 0.9603,
+      "ci_lower": 0.9562975,
+      "ci_upper": 0.9641
+    },
+    "tier_counts": {
+      "Tier 1 (Green - Auto-Tag Ready)": 47,
+      "Tier 2 (Amber - Human-in-the-Loop)": 27,
+      "Tier 3 (Red - Do Not Deploy)": 26
+    }
+  }
+}

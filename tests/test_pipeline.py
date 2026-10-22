@@ -184,3 +184,14 @@ def test_saved_outputs_consistency():
     with open(OUTPUTS / "bias_audit" / "counterfactual_audit.json", encoding="utf-8") as f:
         cf = json.load(f)
     assert "party_role_swap" in cf["results"]["variants"]
+
+    with open(OUTPUTS / "lora_training_history.json", encoding="utf-8") as f:
+        lora = json.load(f)
+    assert lora["param_stats"]["trainable_params"] == 371812
+    assert lora["test_accuracy"] == pytest.approx(0.8473)
+    assert lora["test_macro_f1"] == pytest.approx(0.7539)
+    assert len(lora["history"]) == 3
+    lora_val = np.load(OUTPUTS / "lora_val_logits.npy")
+    lora_test = np.load(OUTPUTS / "lora_test_logits.npy")
+    assert lora_val.shape == (10000, 100)
+    assert lora_test.shape == (10000, 100)
